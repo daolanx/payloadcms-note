@@ -1,0 +1,13 @@
+node_modules
+.next
+.turbo
+.git
+.env.local
+.env
+data/
+media/
+scripts/
+*.md
+.vscode
+.cursor
+certs/
