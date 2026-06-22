@@ -1,56 +1,41 @@
-# Stage 1: Install dependencies
-FROM node:22-alpine AS deps
-RUN npm install -g pnpm@9
+# === 阶段 1：构建应用 ===
+FROM node:22-alpine AS builder
+RUN corepack enable pnpm
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# 利用缓存：先装依赖
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
 RUN pnpm install --frozen-lockfile
 
-# Stage 2: Build the application
-FROM node:22-alpine AS builder
-RUN npm install -g pnpm@9
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# 复制源码并编译
 COPY . .
-
-# Ensure data and media directories exist
-RUN mkdir -p /app/data /app/media
-
-# Build the application
 ENV NODE_ENV=production
 RUN pnpm build
 
-# Stage 3: Production image
+# === 阶段 2：运行应用 ===
 FROM node:22-alpine AS runner
 WORKDIR /app
-
 ENV NODE_ENV=production
 
-# Install sqlite3 for database initialization
+# 安装必要工具
 RUN apk add --no-cache sqlite
 
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy necessary files from builder
+# 复制 Next.js Standalone 产物及启动脚本
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --chown=node:node init-db.sql docker-entrypoint.sh ./
 
-# Copy database schema and entrypoint script
-COPY --chown=nextjs:nodejs init-db.sql /app/init-db.sql
-COPY --chown=nextjs:nodejs docker-entrypoint.sh /app/docker-entrypoint.sh
+# 创建数据目录、改权限、加执行权限一步到位
+RUN mkdir -p data media && \
+    chown -R node:node data media && \
+    chmod +x docker-entrypoint.sh
 
-# Create data and media directories with proper permissions
-RUN mkdir -p /app/data /app/media && \
-    chown -R nextjs:nodejs /app/data /app/media
-
-# Switch to non-root user
-USER nextjs
+# 使用 Alpine 自带的非 root 用户
+USER node
 
 EXPOSE 3000
-
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["/app/docker-entrypoint.sh"]
+CMD ["./docker-entrypoint.sh"]

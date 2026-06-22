@@ -182,7 +182,7 @@ docker compose up -d --build
 # All 3 containers should be running
 docker compose ps
 
-# Health check
+# Health check (via nginx on port 80)
 curl http://localhost/api/health
 # Expected: {"status":"ok"}
 

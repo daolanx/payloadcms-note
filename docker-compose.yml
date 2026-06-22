@@ -2,8 +2,8 @@ services:
   web:
     build: .
     restart: always
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     volumes:
       - sqlite-data:/app/data
       - media-data:/app/media
@@ -34,10 +34,10 @@ services:
         condition: service_healthy
 
   backup:
-    image: alpine:3.19
+    image: alpine:3.21
     restart: unless-stopped
     entrypoint: /bin/sh
-    command: ["-c", "echo '0 2 * * * /app/backup.sh >> /var/log/backup.log 2>&1' | crontab - && crond -f -L /dev/null"]
+    command: ["-c", "apk add --no-cache sqlite && echo '0 2 * * * /app/backup.sh >> /var/log/backup.log 2>&1' | crontab - && crond -f -L /dev/null"]
     volumes:
       - sqlite-data:/data:ro
       - media-data:/media:ro
