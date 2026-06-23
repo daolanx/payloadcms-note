@@ -55,3 +55,6 @@ src/payload-types.ts
 
 # docker
 /certs/
+
+# deployment artifacts
+deploy.tar.gz
