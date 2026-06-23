@@ -1,5 +1,6 @@
-import { sqliteAdapter } from '@payloadcms/db-sqlite'
-import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { postgresAdapter } from '@payloadcms/db-postgres'
+import { lexicalEditor, FixedToolbarFeature } from '@payloadcms/richtext-lexical'
+import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 
 export default buildConfig({
@@ -7,12 +8,35 @@ export default buildConfig({
   admin: {
     user: 'users',
   },
-  db: sqliteAdapter({
-    client: {
-      url: process.env.DATABASE_URI || 'file:./data/database.db',
+  db: postgresAdapter({
+    pool: {
+      connectionString: process.env.DATABASE_URI || 'postgres://localhost:5432/payload',
     },
   }),
-  editor: lexicalEditor(),
+  editor: lexicalEditor({
+    features: ({ defaultFeatures }) => [
+      ...defaultFeatures,
+      FixedToolbarFeature(),
+    ],
+  }),
+  plugins: [
+    s3Storage({
+      collections: {
+        media: true,
+      },
+      bucket: process.env.OSS_BUCKET || '',
+      acl: 'public-read',
+      config: {
+        endpoint: process.env.OSS_ENDPOINT || '',
+        region: 'oss-cn-beijing',
+        credentials: {
+          accessKeyId: process.env.OSS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.OSS_ACCESS_KEY_SECRET || '',
+        },
+        // Alibaba Cloud OSS virtual-hosted style access
+      },
+    }),
+  ],
   collections: [
     {
       slug: 'users',
@@ -30,9 +54,9 @@ export default buildConfig({
           name: 'gender',
           type: 'select',
           options: [
-            { label: '男', value: 'male' },
-            { label: '女', value: 'female' },
-            { label: '其他', value: 'other' },
+            { label: 'Male', value: 'male' },
+            { label: 'Female', value: 'female' },
+            { label: 'Other', value: 'other' },
           ],
           required: true,
         },
@@ -44,30 +68,71 @@ export default buildConfig({
       ],
     },
     {
-      slug: 'pages',
+      slug: 'posts',
       admin: {
         useAsTitle: 'title',
+        defaultColumns: ['title', 'slug', 'status', 'publishedAt'],
+      },
+      hooks: {
+        afterChange: [
+          async () => {
+            const url = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/revalidate`
+            await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-revalidate-secret': process.env.REVALIDATION_SECRET || '',
+              },
+              body: JSON.stringify({ collection: 'posts' }),
+            }).catch(console.error)
+          },
+        ],
+        afterDelete: [
+          async () => {
+            const url = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/revalidate`
+            await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-revalidate-secret': process.env.REVALIDATION_SECRET || '',
+              },
+              body: JSON.stringify({ collection: 'posts' }),
+            }).catch(console.error)
+          },
+        ],
       },
       fields: [
         { name: 'title', type: 'text', required: true },
         { name: 'slug', type: 'text', required: true, unique: true },
+        {
+          name: 'coverImage',
+          type: 'upload',
+          relationTo: 'media',
+        },
+        { name: 'excerpt', type: 'text' },
         { name: 'content', type: 'richText', editor: lexicalEditor() },
         {
           name: 'status',
           type: 'select',
           options: [
-            { label: '草稿', value: 'draft' },
-            { label: '已发布', value: 'published' },
+            { label: 'Draft', value: 'draft' },
+            { label: 'Published', value: 'published' },
           ],
           defaultValue: 'draft',
           required: true,
+        },
+        {
+          name: 'publishedAt',
+          type: 'date',
+          admin: {
+            position: 'sidebar',
+          },
         },
       ],
     },
     {
       slug: 'media',
       upload: {
-        staticDir: 'media',
         mimeTypes: ['image/*'],
       },
       admin: {

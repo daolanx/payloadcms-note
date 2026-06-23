@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Payload CMS Demo",
-  description: "Local editing demo built with Next.js and Payload CMS",
+  title: "My Blog",
+  description: "A blog built with Next.js and Payload CMS",
 };
 
 export default function RootLayout({

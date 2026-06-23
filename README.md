@@ -1,351 +1,243 @@
-# Payload Site
+# 企业宣传站点
 
-Corporate website built with Next.js + Payload CMS + SQLite, featuring CMS content editing and persistent storage, deployed via Docker to Alibaba Cloud ECS.
+基于 Next.js + Payload CMS + PostgreSQL 的企业宣传网站，支持 CMS 内容编辑和持久化存储，部署到阿里云 Serverless 全家桶。
 
-## Tech Stack
+## 技术栈
 
-| Layer | Technology |
-|-------|------------|
-| Framework | Next.js 16 (App Router, standalone output) |
+| 层级 | 技术 |
+|------|------|
+| 框架 | Next.js 16 (App Router, standalone output) |
 | CMS | Payload CMS 3 |
-| Database | SQLite (via @payloadcms/db-sqlite) |
-| Styling | Tailwind CSS 4 + shadcn/ui (base-ui) |
-| Rich Text | Lexical Editor |
-| Deployment | Docker + nginx + Alibaba Cloud ECS |
+| 数据库 | PostgreSQL (阿里云 RDS Serverless) |
+| 媒体存储 | 阿里云 OSS (S3 兼容协议) |
+| 样式 | Tailwind CSS 4 + shadcn/ui (base-ui) |
+| 富文本 | Lexical Editor |
+| 部署 | 阿里云函数计算 FC + CDN |
 
-## Architecture
+## 架构
 
 ```
                     ┌──────────────────────────────────────────┐
-                    │           Alibaba Cloud ECS              │
+                    │          阿里云 Serverless                │
                     │                                          │
-Internet ──────►   │  ┌─────────┐  :80/:443                   │
-                    │  │  nginx  │ ────────►                   │
+Internet ──────►   │  ┌─────────┐  CDN 加速                    │
+                    │  │  CDN    │ ────────►                   │
                     │  └─────────┘                             │
                     │       │                                  │
                     │       ▼                                  │
-                    │  ┌─────────┐  :3000    ┌──────────┐     │
-                    │  │  Next.js│ + Payload │  backup   │     │
-                    │  │  + CMS  │           │ (cron 2am)│     │
-                    │  └─────────┘           └─────┬────┘     │
-                    │       │                      │           │
-                    │  ┌────┴────┐            ┌─────▼────┐     │
-                    │  │ SQLite  │ (volume)   │   OSS    │     │
-                    │  │ + Media │ (volume)   │  (daily) │     │
-                    │  └─────────┘            └──────────┘     │
+                    │  ┌─────────┐  :3000                      │
+                    │  │   FC    │ Next.js + Payload           │
+                    │  │ (Serverless) │                        │
+                    │  └────┬────┘                             │
+                    │       │                                  │
+                    │  ┌────┴────┐       ┌──────────┐         │
+                    │  │ RDS PG  │       │   OSS    │         │
+                    │  │(Serverless) │   │ (媒体文件) │         │
+                    │  └─────────┘       └──────────┘         │
                     └──────────────────────────────────────────┘
 ```
 
-**Two Docker volumes ensure data persistence:**
-- `sqlite-data` → `/app/data` — SQLite database files (CMS content, users, pages, etc.)
-- `media-data` → `/app/media` — uploaded image assets
+**核心组件：**
+- **FC (函数计算)** — 运行 Next.js 应用，按请求计费，空闲时零成本
+- **RDS PostgreSQL (Serverless)** — 数据库，自动扩缩容，按 RCU 计费
+- **OSS (对象存储)** — 存储上传的图片和媒体文件
+- **CDN** — 加速静态资源和页面访问
 
-Data in volumes survives container rebuilds and restarts. `docker-compose down` preserves volumes; only `docker-compose down -v` deletes them.
-
-## Project Structure
+## 项目结构
 
 ```
 ├── src/
 │   ├── app/
-│   │   ├── (frontend)/          # Public pages (has its own layout)
-│   │   │   ├── layout.tsx       # <html>/<body> tags, fonts, global styles
-│   │   │   ├── page.tsx         # Homepage (user list)
+│   │   ├── (frontend)/          # 前台页面（拥有独立 layout）
+│   │   │   ├── layout.tsx       # html/body 标签、字体、全局样式
+│   │   │   ├── page.tsx         # 首页（用户列表展示）
 │   │   │   └── globals.css
-│   │   ├── (payload)/           # Payload CMS admin (auto-generated)
+│   │   ├── (payload)/           # Payload CMS 后台（自动生成）
 │   │   │   └── admin/
 │   │   ├── api/
-│   │   │   ├── [...slug]/       # Payload REST API (auto-generated)
-│   │   │   └── health/          # Health check endpoint
-│   │   └── layout.tsx           # Root layout (returns children only)
-│   ├── components/ui/           # shadcn/ui components
+│   │   │   ├── [...slug]/       # Payload REST API（自动生成）
+│   │   │   └── health/          # 健康检查端点
+│   │   └── layout.tsx           # 根 layout（仅返回 children，避免嵌套 HTML）
+│   ├── components/ui/           # shadcn/ui 组件
 │   ├── lib/utils.ts
-│   └── payload.config.ts        # Payload CMS config (collections, adapter, etc.)
+│   └── payload.config.ts        # Payload CMS 配置（collections、adapter 等）
 ├── scripts/
-│   ├── backup.sh                # Automated backup to Alibaba Cloud OSS
-│   └── restore.sh               # Data recovery script (local + OSS)
-├── docker-entrypoint.sh         # Docker entrypoint (auto-creates tables)
-├── init-db.sql                  # SQLite table schema (used by entrypoint)
-├── nginx.conf                   # nginx reverse proxy config
-├── Dockerfile                   # Multi-stage build (deps → builder → runner)
-├── docker-compose.yml           # web + nginx + backup orchestration
-└── .env.docker.example          # Deployment env template
+├── .env.example                 # 环境变量模板
+└── next.config.ts               # Next.js 配置（standalone output）
 ```
 
-### Route Groups (critical)
+### 路由组说明（关键）
 
-- `(frontend)/` — Public pages with its own `layout.tsx` (contains `<html>` `<body>` tags)
-- `(payload)/admin/` — Payload admin panel with auto-generated layout using `RootLayout`
-- Root `layout.tsx` — Returns `<>{children}</>` only, avoids nested HTML conflicts
+- `(frontend)/` — 前台页面，拥有自己的 `layout.tsx`（包含 `<html>` `<body>` 标签）
+- `(payload)/admin/` — Payload 管理后台，其自动生成的 layout 使用 `RootLayout` 渲染独立的 HTML 文档
+- 根 `layout.tsx` — 仅返回 `<>{children}</>`，避免两套 HTML 嵌套冲突
 
-## CMS Data Model
+## CMS 数据模型
 
-| Collection | Description | Fields |
-|------------|-------------|--------|
-| `users` | Users (with auth) | name, gender, avatar, email + password |
-| `pages` | Page content | title, slug, content(richText), status |
-| `media` | Uploaded assets | alt, + auto-managed file metadata |
+| Collection | 说明 | 字段 |
+|------------|------|------|
+| `users` | 用户（带认证） | name, gender, avatar, email + 密码 |
+| `pages` | 页面内容 | title, slug, content(richText), status |
+| `media` | 上传素材（OSS 存储） | alt, + Payload 自动管理的文件元数据 |
 
-- `users` and `pages` require login
-- `media` is publicly readable, requires login for upload/edit
+- `users` 和 `pages` 需登录后操作
+- `media` 公开可读，需登录后上传/修改
 
-## Local Development
+## 本地开发
 
-### Requirements
+### 环境要求
 
 - Node.js 22+
 - pnpm 9+
+- PostgreSQL（本地或远程）
 
-### Getting Started
+### 启动
 
 ```bash
+# 安装依赖
 pnpm install
+
+# 配置环境变量
+cp .env.example .env.local
+# 编辑 .env.local 填入本地 PostgreSQL 连接串等配置
+
+# 启动开发服务器（端口 3000）
 pnpm dev
 ```
 
-- Public site: http://localhost:3000
-- CMS admin: http://localhost:3000/admin
+访问：
+- 前台：http://localhost:3000
+- CMS 后台：http://localhost:3000/admin
 
-First visit to admin will auto-create the SQLite database and tables.
+首次访问后台时 Payload 会自动创建数据库表结构。
 
-## Docker Local Testing
+## 部署到阿里云
+
+### 步骤一：准备阿里云服务
+
+#### 1. 创建 RDS PostgreSQL Serverless
+
+1. 阿里云控制台 → 云数据库 RDS → 创建实例
+2. 选择 **PostgreSQL** → **Serverless** 版本
+3. 配置：
+   - RCU 范围：0.5 - 2（按需扩缩）
+   - 存储：20GB 起步
+   - 网络：选择 VPC（后续 FC 也要在同一 VPC）
+4. 创建数据库 `payload`，设置账号密码
+5. 记录连接地址：`rm-xxx.pg.rds.aliyuncs.com`
+
+#### 2. 创建 OSS Bucket
+
+1. 阿里云控制台 → 对象存储 OSS → 创建 Bucket
+2. 选择同 Region（如 `oss-cn-hangzhou`）
+3. 访问权限：私有（读写需要签名）
+4. 创建 RAM 子账号，授予 `AliyunOSSFullAccess` 权限
+5. 记录 AccessKey ID 和 Secret
+
+#### 3. 创建函数计算 FC 服务
+
+1. 阿里云控制台 → 函数计算 FC → 创建服务
+2. 运行环境：Node.js 22
+3. 网络配置：选择与 RDS 相同的 VPC
+4. 域名配置：绑定自定义域名（可选，后续配置）
+
+### 步骤二：配置环境变量
+
+在 FC 控制台的环境变量中配置：
 
 ```bash
-pnpm docker:dev          # Next.js only (no nginx)
-pnpm docker:up           # Full stack (Next.js + nginx)
-pnpm docker:logs         # View logs
-pnpm docker:down         # Stop
-```
-
-On first start, `docker-entrypoint.sh` detects an empty database and runs `init-db.sql` to create tables.
-
-## Deploy to Alibaba Cloud ECS
-
-### 1. Prepare ECS
-
-```bash
-curl -fsSL https://get.docker.com | sh
-systemctl enable --now docker
-apt install docker-compose-plugin
-```
-
-### 2. Upload Code
-
-```bash
-git clone <your-repo-url> /opt/payload-site
-cd /opt/payload-site
-```
-
-### 3. Configure Environment
-
-```bash
-cp .env.docker.example .env
-```
-
-Edit `.env` with real values:
-
-```bash
-# === Application ===
-PAYLOAD_SECRET=<random 32+ char string>
+# Payload CMS
+PAYLOAD_SECRET=<随机生成 32+ 位字符串>
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 
-# === Alibaba Cloud OSS Backup ===
-OSS_ENDPOINT=oss-cn-hangzhou-internal.aliyuncs.com
-OSS_BUCKET=your-backup-bucket
-OSS_ACCESS_KEY_ID=your-access-key-id
-OSS_ACCESS_KEY_SECRET=your-access-key-secret
-BACKUP_PREFIX=payload-site
+# RDS PostgreSQL
+DATABASE_URI=postgres://user:password@rm-xxx.pg.rds.aliyuncs.com:5432/payload
+
+# OSS
+OSS_ENDPOINT=https://oss-cn-hangzhou.aliyuncs.com
+OSS_BUCKET=your-media-bucket
+OSS_ACCESS_KEY_ID=xxx
+OSS_ACCESS_KEY_SECRET=xxx
 ```
 
-> ⚠️ `PAYLOAD_SECRET` is the Payload signing key. Never change it after initial setup — existing sessions will be invalidated.
-> ⚠️ OSS setup requires creating a bucket and AccessKey in the Alibaba Cloud console. Use a RAM sub-account with OSS read/write permissions only.
+> ⚠️ `PAYLOAD_SECRET` 一旦设定不要更换，否则已有的登录 session 全部失效。
 
-### 4. Configure SSL (optional, recommended)
+### 步骤三：部署代码
+
+#### 方式 A：FC 控制台上传 ZIP
 
 ```bash
-mkdir -p certs
-# Place certificate files in certs/
-# certs/fullchain.pem   — certificate chain
-# certs/privkey.pem     — private key
+# 本地构建
+pnpm install
+pnpm build
+
+# 打包（排除 node_modules，FC 会自动安装）
+zip -r payload-site.zip . -x "node_modules/*" ".git/*" "media/*" "data/*"
+
+# 上传到 FC 控制台
 ```
 
-Edit `nginx.conf` to uncomment the SSL section and update `server_name`.
+#### 方式 B：Git 持续部署
 
-### 5. Start Services
+1. FC 控制台 → 服务 → 基本信息 → 代码来源 → 选择 GitHub/Gitee
+2. 配置仓库和分支
+3. 构建命令：`pnpm install && pnpm build`
+4. 启动命令：`node .next/standalone/server.js`
+
+### 步骤四：配置 CDN 加速
+
+1. 阿里云控制台 → CDN → 创建加速域名
+2. 源站类型：选择 FC 服务域名
+3. 缓存配置：
+   - `/_next/static/*` → 缓存 30 天
+   - `/media/*` → 缓存 7 天
+   - 其他 → 不缓存（动态页面）
+
+### 步骤五：配置 SSL（可选）
+
+- CDN 控制台 → 域名管理 → HTTPS 设置
+- 上传证书或使用免费证书
+
+### 步骤六：验证
 
 ```bash
-docker compose up -d --build
+# 检查健康状态
+curl https://your-domain.com/api/health
+# 返回 {"status":"ok"} 即正常
+
+# 访问管理后台
+https://your-domain.com/admin
+
+# 创建第一个管理员用户
 ```
 
-### 6. Verify
+## 成本估算
 
-```bash
-# All 3 containers should be running
-docker compose ps
+| 服务 | 计费方式 | 预估月费（低流量） |
+|------|---------|------------------|
+| FC 函数计算 | 按请求计费 | ¥0 - ¥5 |
+| RDS PostgreSQL | 按 RCU 计费 | ¥10 - ¥50 |
+| OSS 存储 | 按存储量 | ¥1 - ¥5 |
+| CDN | 按流量 | ¥0 - ¥10 |
+| **合计** | | **¥11 - ¥70/月** |
 
-# Health check (via nginx on port 80)
-curl http://localhost/api/health
-# Expected: {"status":"ok"}
+> 空闲时（无访问）接近零成本，有流量时按量计费。
 
-# Confirm database initialization
-docker compose logs web | grep "Database initialized"
+## 常用命令
 
-# Check backup logs
-docker compose logs backup
-```
+| 命令 | 说明 |
+|------|------|
+| `pnpm dev` | 本地开发服务器 |
+| `pnpm build` | 生产构建 |
+| `pnpm start` | 本地启动生产版本 |
+| `pnpm lint` | 代码检查 |
 
-Visit `http://your-domain.com/admin` to create the first admin user.
+## 数据持久化
 
-### 7. Verify Backup
+| 存储位置 | 说明 | 持久化 |
+|---------|------|--------|
+| RDS PostgreSQL | 数据库内容（用户、页面等） | ✅ 阿里云自动备份 |
+| OSS | 上传的媒体文件 | ✅ 阿里云 11 个 9 可靠性 |
+| FC 本地磁盘 | 临时文件 | ❌ 函数销毁后清除 |
 
-```bash
-# Trigger a manual backup (validates OSS config)
-docker compose exec backup sh /app/backup.sh
-
-# Expected: "Upload successful."
-# Verify file in OSS bucket: payload-site/backup-YYYYMMDD-HHMMSS.tar.gz
-```
-
-## Backup
-
-### Automated Backup
-
-The `backup` container runs daily at 2:00 AM via cron:
-
-```
-sqlite3 .backup  ──►  database.db  (safe hot-copy of running DB)
-tar -czf         ──►  media.tar.gz (compressed uploaded images)
-tar -czf         ──►  backup-YYYYMMDD-HHMMSS.tar.gz (archive)
-curl PUT         ──►  Alibaba Cloud OSS (HMAC-SHA1 signed upload)
-```
-
-- Uses `sqlite3 .backup` instead of `cp` to avoid corruption during runtime copies
-- Auto-cleans backups older than 7 days from OSS
-- Local copies are not retained; OSS is the sole backup store
-
-### Backup File Contents
-
-```
-backup-YYYYMMDD-HHMMSS.tar.gz
-├── database.db      # Full SQLite database copy
-└── media.tar.gz     # All uploaded image assets
-```
-
-### Manual Backup
-
-```bash
-docker compose exec backup sh /app/backup.sh
-```
-
-## Data Recovery
-
-Uses `scripts/restore.sh` or corresponding pnpm commands. Supports local backups and OSS remote recovery.
-
-### Quick Commands
-
-```bash
-pnpm backup:list            # List local backups
-pnpm db:restore <file>      # Restore database
-pnpm backup:media <file>    # Restore media files
-pnpm backup:full <file>     # Full restore (database + media)
-pnpm backup:oss latest      # Download and restore latest from OSS
-pnpm backup:oss:list        # List backups on OSS
-```
-
-### Scenario 1: Restore to a Point in Time
-
-```bash
-# One command to restore the latest backup from OSS
-pnpm backup:oss latest
-
-# Or manually:
-pnpm backup:oss:list
-pnpm backup:oss backup-20260622-020000.tar.gz
-```
-
-### Scenario 2: New ECS Instance, Full Recovery
-
-```bash
-# 1. Install Docker on new ECS (see deploy step 1)
-
-# 2. Clone code + configure env
-git clone <your-repo-url> /opt/payload-site
-cd /opt/payload-site
-cp .env.docker.example .env
-# Edit .env with all config (including OSS)
-
-# 3. Start web container
-docker compose up -d --build web
-
-# 4. Restore from OSS
-pnpm backup:oss latest
-
-# 5. Start all services
-docker compose up -d
-```
-
-### Scenario 3: Database Corruption, Restore DB Only
-
-```bash
-# From local backup
-pnpm backup:list
-pnpm db:restore ./backups/database-20260622.db
-
-# From OSS
-pnpm backup:oss latest
-```
-
-### Scenario 4: Restore Media Files Only
-
-```bash
-pnpm backup:media ./backups/media-backup.tar.gz
-# Current media is auto-backed up before restore
-```
-
-## Quick Reference
-
-### Development & Deployment
-
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Local dev server |
-| `pnpm docker:dev` | Docker start (Next.js only) |
-| `pnpm docker:up` | Docker start (full stack) |
-| `pnpm docker:down` | Docker stop (preserves data) |
-| `pnpm docker:logs` | View container logs |
-| `pnpm docker:restart` | Restart containers |
-| `docker compose down -v` | Stop and **delete** all data |
-
-### Backup & Recovery
-
-| Command | Description |
-|---------|-------------|
-| `pnpm db:backup` | Backup database to `./backups/` |
-| `pnpm backup:list` | List all local backup files |
-| `pnpm db:restore <file>` | Restore database |
-| `pnpm backup:media <file>` | Restore media files |
-| `pnpm backup:full <file>` | Full restore (database + media) |
-| `pnpm backup:oss latest` | Restore latest backup from OSS |
-| `pnpm backup:oss:list` | List backups on OSS |
-| `docker compose exec backup sh /app/backup.sh` | Trigger manual OSS backup |
-
-## Data Persistence
-
-```
-Docker Volume (sqlite-data)  ──►  /app/data/database.db
-Docker Volume (media-data)   ──►  /app/media/*
-```
-
-| Operation | Data Preserved? |
-|-----------|----------------|
-| `docker compose restart` | ✅ Yes |
-| `docker compose down` | ✅ Yes |
-| `docker compose down -v` | ❌ Deleted |
-| Image rebuild | ✅ Yes (volumes are independent) |
-| ECS instance restart | ✅ Yes (volumes on ECS cloud disk) |
-| ECS instance termination | ❌ Lost (recover from OSS) |
-
-> ⚠️ Docker volumes on Alibaba Cloud ECS are stored on the system disk by default. System disk termination = data loss. Daily OSS backups provide protection, but periodically verify that backups are uploading successfully.
-
----
-
-**Last Updated:** 2026-06-22
+> FC 函数实例的本地磁盘是临时的，所有持久化数据必须存储在 RDS 或 OSS 中。
