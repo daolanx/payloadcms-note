@@ -119,13 +119,14 @@ pnpm build
 pnpm start
 ```
 
-## Deployment (Alibaba Cloud FC)
+## Deployment (Alibaba Cloud ECS)
 
 ```bash
-# Build and package
+# Build standalone output
 pnpm run deploy:build
 
-# Upload payload-cms-deploy.zip to Alibaba Cloud Function Compute
+# Copy .next/standalone to your ECS server
+# Set environment variables and run with Node.js
 ```
 
 ## License
