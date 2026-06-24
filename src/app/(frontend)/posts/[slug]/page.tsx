@@ -5,7 +5,7 @@ import { RichText } from '@payloadcms/richtext-lexical/react'
 import type { Metadata } from 'next'
 import { getPost, getAllPostSlugs } from '@/lib/posts'
 
-export const dynamic = 'force-static'
+export const revalidate = 60
 
 type PageProps = {
   params: Promise<{ slug: string }>

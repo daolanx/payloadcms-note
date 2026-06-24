@@ -1,14 +1,15 @@
 services:
   app:
     build: .
+    image: ${DOCKER_REGISTRY:-payload-site-app}:${IMAGE_TAG:-latest}
     container_name: blog-app
     restart: unless-stopped
     env_file: .env.local
     environment:
       - NODE_ENV=production
       - PORT=3000
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
 
   nginx:
     image: nginx:alpine

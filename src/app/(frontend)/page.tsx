@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getPosts } from '@/lib/posts'
 
-export const dynamic = 'force-static'
+export const dynamic = 'force-dynamic'
 
 export default async function Home() {
   const posts = await getPosts()
