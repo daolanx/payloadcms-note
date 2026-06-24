@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy:build": "bash scripts/deploy.sh"
+    "docker:build": "bash scripts/build.sh",
+    "docker:push": "bash scripts/push.sh",
+    "docker:deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

@@ -10,5 +10,6 @@ certs/
 backups/
 media/
 data/
+scripts/
 *.md
 .vscode

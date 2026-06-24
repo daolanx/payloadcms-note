@@ -5,10 +5,11 @@ on:
     branches: [main]
 
 env:
-  ACR_REGISTRY: crpi-l5xg3bxsmy58r36i.cn-hangzhou.personal.cr.aliyuncs.com
-  ACR_NAMESPACE: daolanx
-  IMAGE_NAME: payload-notes
-  DEPLOY_PATH: /opt/blog
+  ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
+  ACR_NAMESPACE: ${{ vars.ACR_NAMESPACE }}
+  ACR_USERNAME: ${{ vars.ACR_USERNAME }}
+  IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+  DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
 
 jobs:
   build-and-deploy:
@@ -21,7 +22,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.ACR_REGISTRY }}
-          username: daolanx
+          username: ${{ env.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Set up Docker Buildx
@@ -47,10 +48,10 @@ jobs:
           script: |
             # Login to ACR
             docker login ${{ env.ACR_REGISTRY }} \
-              -u daolanx \
+              -u ${{ env.ACR_USERNAME }} \
               -p ${{ secrets.ACR_PASSWORD }}
 
-            # Inject image tag into docker-compose.yml
+            # Update image tag in docker-compose.yml
             cd ${{ env.DEPLOY_PATH }}
             IMAGE="${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
             sed -i "s|image:.*|image: $IMAGE|" docker-compose.yml

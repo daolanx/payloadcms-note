@@ -3,11 +3,32 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-echo "▸ Building project..."
-NODE_ENV=production pnpm build
+# Load env vars from .env.local
+if [ -f .env.local ]; then
+  set -a
+  source .env.local
+  set +a
+fi
 
-echo "▸ Copying static assets..."
-cp -r public .next/standalone/public
-cp -r .next/static .next/standalone/.next/static
+IMAGE_TAG="${1:-latest}"
+FULL_IMAGE="${ACR_REGISTRY}/${ACR_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 
-echo "✓ Standalone build ready at .next/standalone/"
+echo "▸ Deploying to ECS: ${ECS_HOST}"
+echo "  Image: ${FULL_IMAGE}"
+
+# SSH into ECS and deploy
+ssh "${ECS_USERNAME}@${ECS_HOST}" << EOF
+  cd ${DEPLOY_PATH}
+
+  # Login to ACR
+  docker login --username="${ACR_USERNAME}" "${ACR_REGISTRY}"
+
+  # Update image tag in docker-compose.yml
+  sed -i "s|image:.*|image: ${FULL_IMAGE}|" docker-compose.yml
+
+  # Pull and restart
+  docker compose pull
+  docker compose up -d --remove-orphans
+EOF
+
+echo "✓ Deployed to ${ECS_HOST}"
