@@ -2,7 +2,7 @@ services:
   app:
     build: .
     image: ${DOCKER_REGISTRY:-payload-site-app}:${IMAGE_TAG:-latest}
-    container_name: blog-app
+    container_name: notes-app
     restart: unless-stopped
     env_file: .env.local
     environment:
@@ -13,7 +13,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: blog-nginx
+    container_name: notes-nginx
     restart: unless-stopped
     ports:
       - "80:80"

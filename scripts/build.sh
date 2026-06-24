@@ -1,4 +1,6 @@
 #!/bin/bash
+# Build Docker image from local Dockerfile
+# Usage: ./scripts/build.sh [tag]   (default: latest)
 set -e
 
 cd "$(dirname "$0")/.."

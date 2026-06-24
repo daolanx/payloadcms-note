@@ -10,7 +10,8 @@
     "lint": "eslint",
     "docker:build": "bash scripts/build.sh",
     "docker:push": "bash scripts/push.sh",
-    "docker:deploy": "bash scripts/deploy.sh"
+    "docker:deploy": "bash scripts/deploy.sh",
+    "ecs:init": "bash scripts/setup-ecs.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

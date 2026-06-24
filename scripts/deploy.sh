@@ -1,4 +1,6 @@
 #!/bin/bash
+# Deploy to ECS: SSH into server, pull latest image, restart containers
+# Usage: ./scripts/deploy.sh [tag]   (default: latest)
 set -e
 
 cd "$(dirname "$0")/.."

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'My Blog',
-  description: 'A blog built with Next.js and Payload CMS',
+  title: 'My Notes',
+  description: 'A notes app built with Next.js and Payload CMS',
 }
 
 export default function FrontendLayout({

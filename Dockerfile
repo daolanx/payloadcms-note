@@ -1,4 +1,4 @@
-# Stage 1: Build
+# Stage 1: Install dependencies and build Next.js
 FROM node:22-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
@@ -9,7 +9,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN NODE_ENV=production pnpm build
 
-# Stage 2: Production
+# Stage 2: Minimal production image with standalone output
 FROM node:22-alpine AS runner
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 

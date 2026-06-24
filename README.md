@@ -1,6 +1,6 @@
-# My Blog
+# My Notes
 
-A blog built with Next.js 16, Payload CMS 3, PostgreSQL, and Alibaba Cloud OSS.
+A notes app built with Next.js 16, Payload CMS 3, PostgreSQL, and Alibaba Cloud OSS.
 
 ## Features
 
@@ -27,10 +27,10 @@ A blog built with Next.js 16, Payload CMS 3, PostgreSQL, and Alibaba Cloud OSS.
 ```
 src/
 ├── app/
-│   ├── (frontend)/          # Public blog pages
+│   ├── (frontend)/          # Public pages
 │   │   ├── layout.tsx       # HTML shell, fonts, Header
-│   │   ├── page.tsx         # Homepage — post listing (SSG)
-│   │   └── posts/[slug]/    # Post detail page (SSG)
+│   │   ├── page.tsx         # Homepage — post listing (ISR)
+│   │   └── posts/[slug]/    # Post detail page (ISR)
 │   ├── (payload)/admin/     # Payload CMS admin panel
 │   └── api/
 │       ├── [...slug]/       # Payload REST API
@@ -45,53 +45,116 @@ src/
 └── payload.config.ts        # Payload CMS configuration
 ```
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 22+
-- pnpm
-- PostgreSQL database
-
-### Setup
+## Environment Variables
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Copy environment variables
 cp .env.example .env.local
-# Edit .env.local with your actual credentials
-
-# Start dev server
-pnpm dev
+# Fill in all values — both app config and deploy config
 ```
-
-Visit `http://localhost:3000` for the blog, `http://localhost:3000/admin` for the CMS admin.
-
-### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `PAYLOAD_SECRET` | Payload CMS secret key |
 | `DATABASE_URI` | PostgreSQL connection string |
-| `NEXT_PUBLIC_SITE_URL` | Public site URL (e.g. `https://blog.example.com`) |
+| `NEXT_PUBLIC_SITE_URL` | Public site URL |
 | `REVALIDATION_SECRET` | Secret for the revalidation API endpoint |
 | `OSS_ENDPOINT` | Alibaba Cloud OSS endpoint |
 | `OSS_BUCKET` | OSS bucket name |
 | `OSS_ACCESS_KEY_ID` | OSS access key ID |
 | `OSS_ACCESS_KEY_SECRET` | OSS access key secret |
-| `NEXT_PUBLIC_OSS_ENDPOINT` | Same as OSS_ENDPOINT (exposed to client for image loader) |
-| `NEXT_PUBLIC_OSS_BUCKET` | Same as OSS_BUCKET (exposed to client for image loader) |
+| `NEXT_PUBLIC_OSS_ENDPOINT` | OSS endpoint (exposed to client for image loader) |
+| `NEXT_PUBLIC_OSS_BUCKET` | OSS bucket (exposed to client for image loader) |
+| `ACR_REGISTRY` | ACR endpoint |
+| `ACR_NAMESPACE` | ACR namespace |
+| `ACR_USERNAME` | ACR username |
+| `IMAGE_NAME` | ACR repository name |
+| `ECS_HOST` | ECS server public IP |
+| `ECS_USERNAME` | ECS SSH username |
+| `DEPLOY_PATH` | Deploy directory on ECS |
+
+## 1. Local Development
+
+```bash
+pnpm dev                    # http://localhost:3000
+
+# Or Docker
+docker compose up -d app --build
+```
+
+## 2. ECS Initialization
+
+> Run on your **local machine** (not ECS). Prerequisites: repo cloned, SSH key configured.
+
+```bash
+# 1. Fill in .env.local with ECS_HOST and other deploy config
+cp .env.example .env.local
+vim .env.local
+
+# 2. Run setup
+./scripts/setup-ecs.sh    # or: pnpm ecs:init
+```
+
+## 3. Manual Deployment
+
+Run three commands from your local machine:
+
+```bash
+./scripts/build.sh          # Build image locally
+./scripts/push.sh           # Push to ACR
+./scripts/deploy.sh         # SSH to ECS, pull and restart
+```
+
+Or with a specific tag:
+
+```bash
+./scripts/build.sh v1.0.0
+./scripts/push.sh v1.0.0
+./scripts/deploy.sh v1.0.0
+```
+
+## 4. GitHub Actions Deployment
+
+Push to `main` triggers automatic deployment:
+
+```bash
+git push origin main
+```
+
+Pipeline: build → push to ACR → SSH to ECS → pull & restart.
+
+### GitHub Configuration
+
+**Variables** (non-sensitive, Settings → Actions → Variables):
+
+| Variable | Description |
+|----------|-------------|
+| `ACR_REGISTRY` | ACR endpoint |
+| `ACR_NAMESPACE` | ACR namespace |
+| `ACR_USERNAME` | ACR username |
+| `IMAGE_NAME` | `payload-notes` |
+| `DEPLOY_PATH` | `/opt/notes` |
+
+**Secrets** (sensitive, Settings → Actions → Secrets):
+
+| Secret | Description |
+|--------|-------------|
+| `ACR_PASSWORD` | ACR login password |
+| `ECS_HOST` | ECS server public IP |
+| `ECS_USERNAME` | ECS SSH username |
+| `ECS_SSH_KEY` | SSH private key for ECS |
 
 ## Architecture
 
-### SSG + On-demand Revalidation
+```
+Browser → nginx (:80/:443) → Next.js (:3000) → PostgreSQL + OSS
+```
+
+### ISR (Incremental Static Regeneration)
 
 ```
 Build time:  generateStaticParams() → pre-render all /posts/[slug] pages
 Edit time:   Payload afterChange hook → POST /api/revalidate → revalidatePath()
-Runtime:     pages served from cache until next edit
+Runtime:     pages served from cache, auto-regenerate every 60s
 ```
 
 ### Image Loading
@@ -102,119 +165,33 @@ http://localhost:3000/api/media/file/big.webp
   → https://bucket.oss-cn-beijing.aliyuncs.com/big.webp?x-oss-process=image/resize,w_640
 ```
 
-Small devices get small images, large devices get large ones. OSS handles format conversion and CDN caching.
-
 ### Payload CMS Collections
 
 | Collection | Description |
 |-----------|-------------|
-| `posts` | Blog posts — title, slug, cover image, excerpt, rich text content, status, published date |
+| `posts` | Notes — title, slug, cover image, excerpt, rich text content, status, published date |
 | `media` | Uploaded images — stored in OSS, public read access |
 | `users` | Admin users — authentication enabled |
 
-## Production Build
+## SSL (Optional)
+
+Two ways to set up HTTPS:
+
+**Option A: Certbot on ECS (recommended)**
 
 ```bash
-pnpm build
-pnpm start
+ssh root@<ECS_HOST>
+certbot certonly --standalone -d your-domain.com
+cp /etc/letsencrypt/live/your-domain.com/fullchain.pem /opt/notes/certs/cert.pem
+cp /etc/letsencrypt/live/your-domain.com/privkey.pem /opt/notes/certs/key.pem
+docker compose -f /opt/notes/docker-compose.yml restart nginx
 ```
 
-## Deployment (Docker + Alibaba Cloud ECS)
+**Option B: Local certs, auto-upload via script**
 
-Automated via GitHub Actions. Push to `main` triggers build + deploy.
+Place `certs/cert.pem` and `certs/key.pem` locally, then run `pnpm ecs:init` — the script uploads them automatically.
 
-### How It Works
-
-```
-git push → GitHub Actions → build Docker image → push to ACR → ECS pulls & restarts
-```
-
-- **Build**: Docker multi-stage build on GitHub runners (not ECS)
-- **Registry**: Alibaba Cloud Container Registry (ACR)
-- **Runtime**: Docker Compose (app + nginx)
-
-### Setup
-
-**1. Create Alibaba Cloud ACR namespace and repository:**
-
-1. Go to [ACR Console](https://cr.console.aliyun.com/)
-2. Create a **namespace** (e.g. `my-blog`)
-3. Create a **repository** under that namespace (name: `blog`)
-
-**2. Add GitHub Secrets** (Settings → Secrets → Actions):
-
-| Secret | Description | Example |
-|--------|-------------|---------|
-| `ECS_HOST` | ECS public IP | `47.100.xxx.xxx` |
-| `ECS_USERNAME` | SSH user | `root` |
-| `ECS_SSH_KEY` | SSH private key | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
-| `ACR_NAMESPACE` | ACR namespace | `my-blog` |
-| `ACR_USERNAME` | ACR login name | `your-aliyun-account` |
-| `ACR_PASSWORD` | ACR login password | `your-aliyun-password` |
-
-**3. First-time ECS setup** (run once):
-
-```bash
-# SSH into ECS
-ssh root@your-ecs-ip
-
-# Install Docker
-apt update && apt install -y docker.io docker-compose-plugin
-systemctl enable --now docker
-
-# Create project directory
-mkdir -p /opt/blog
-
-# Copy config files from local machine
-scp docker-compose.yml nginx.conf root@YOUR_ECS_IP:/opt/blog/
-
-# Create environment variables on ECS
-cat > /opt/blog/.env.local << 'EOF'
-PAYLOAD_SECRET=your-secret
-NEXT_PUBLIC_SITE_URL=https://your-domain.com
-REVALIDATION_SECRET=your-revalidation-secret
-DATABASE_URI=postgres://user:password@host:5432/payload
-OSS_ENDPOINT=https://oss-cn-hangzhou.aliyuncs.com
-OSS_BUCKET=your-bucket
-OSS_ACCESS_KEY_ID=your-key-id
-OSS_ACCESS_KEY_SECRET=your-key-secret
-NEXT_PUBLIC_OSS_ENDPOINT=https://oss-cn-hangzhou.aliyuncs.com
-NEXT_PUBLIC_OSS_BUCKET=your-bucket
-DOCKER_REGISTRY=registry.cn-hangzhou.aliyuncs.com/your-namespace
-IMAGE_TAG=latest
-EOF
-
-# Edit .env.local with your actual values
-vim /opt/blog/.env.local
-
-# Start the app
-cd /opt/blog && docker compose up -d
-```
-
-**4. Deploy** — just push:
-
-```bash
-git push origin main
-```
-
-### ECS Prerequisites
-
-- Docker + Docker Compose installed
-- SSH access from GitHub Actions
-- `.env.local` on ECS at `/opt/blog/.env.local`
-
-### Useful Commands
-
-```bash
-# On ECS, view logs
-docker compose -f /opt/blog/docker-compose.yml logs -f app
-
-# Restart app
-docker compose -f /opt/blog/docker-compose.yml restart app
-
-# Rollback to previous version
-docker compose -f /opt/blog/docker-compose.yml up -d --no-deps app
-```
+After certificates are in place, uncomment the HTTPS block in `nginx.conf`.
 
 ## License
 

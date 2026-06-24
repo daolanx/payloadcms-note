@@ -1,4 +1,6 @@
 #!/bin/bash
+# Push Docker image to Alibaba Cloud ACR
+# Usage: ./scripts/push.sh [tag]   (default: latest)
 set -e
 
 cd "$(dirname "$0")/.."
