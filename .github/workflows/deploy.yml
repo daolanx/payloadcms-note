@@ -50,9 +50,10 @@ jobs:
               -u ${{ secrets.ACR_USERNAME }} \
               -p ${{ secrets.ACR_PASSWORD }}
 
-            # Update image tag
+            # Inject image tag into docker-compose.yml
             cd ${{ env.DEPLOY_PATH }}
-            sed -i "s|image:.*|image: ${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" docker-compose.yml
+            IMAGE="${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+            sed -i "/^  app:/a\\    image: $IMAGE" docker-compose.yml
 
             # Pull and restart
             docker compose pull

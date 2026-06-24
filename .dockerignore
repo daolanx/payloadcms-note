@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env*
+!.env.example
+Dockerfile
+docker-compose*.yml
+nginx.conf
+certs/
+backups/
+media/
+data/
+*.md
+.vscode

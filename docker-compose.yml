@@ -1,15 +1,12 @@
 services:
   app:
-    image: ${DOCKER_REGISTRY}/blog:${IMAGE_TAG:-latest}
+    build: .
     container_name: blog-app
     restart: unless-stopped
     env_file: .env.local
     environment:
       - NODE_ENV=production
       - PORT=3000
-    volumes:
-      - ./data:/app/data
-      - ./media:/app/media
     expose:
       - "3000"
 
