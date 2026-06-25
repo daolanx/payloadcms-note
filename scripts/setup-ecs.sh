@@ -2,7 +2,7 @@
 # First-time ECS setup:
 # 1. SSH into ECS → install Docker + Docker Compose
 # 2. Create deploy directory on ECS
-# 3. Upload docker-compose.yml, nginx.conf, .env.local
+# 3. Upload compose.yaml, nginx.conf, .env.local
 # 4. Upload SSL certs if certs/cert.pem and certs/key.pem exist
 set -e
 
@@ -36,7 +36,7 @@ EOF
 
 # Upload config files
 echo "▸ Uploading config files..."
-scp docker-compose.yml nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
+scp compose.yaml nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 scp .env.local "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 
 # Upload SSL certs if they exist locally

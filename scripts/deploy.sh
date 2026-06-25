@@ -25,12 +25,12 @@ ssh "${ECS_USERNAME}@${ECS_HOST}" << EOF
   # Login to ACR
   docker login --username="${ACR_USERNAME}" "${ACR_REGISTRY}"
 
-  # Update image tag in docker-compose.yml
-  sed -i "s|image:.*|image: ${FULL_IMAGE}|" docker-compose.yml
+  # Update image tag in compose.yaml
+  sed -i "s|image:.*|image: ${FULL_IMAGE}|" compose.yaml
 
   # Pull and restart
-  docker compose pull
-  docker compose up -d --remove-orphans
+  docker compose --profile prod pull
+  docker compose --profile prod up -d --remove-orphans
 EOF
 
 echo "✓ Deployed to ${ECS_HOST}"

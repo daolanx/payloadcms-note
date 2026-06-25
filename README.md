@@ -77,8 +77,8 @@ cp .env.example .env.local
 ```bash
 pnpm dev                    # http://localhost:3000
 
-# Or Docker
-docker compose up -d app --build
+# Or Docker (hot reload with compose watch)
+docker compose --profile dev watch
 ```
 
 ## 2. ECS Initialization
@@ -184,7 +184,7 @@ ssh root@<ECS_HOST>
 certbot certonly --standalone -d your-domain.com
 cp /etc/letsencrypt/live/your-domain.com/fullchain.pem /opt/notes/certs/cert.pem
 cp /etc/letsencrypt/live/your-domain.com/privkey.pem /opt/notes/certs/key.pem
-docker compose -f /opt/notes/docker-compose.yml restart nginx
+docker compose -f /opt/notes/compose.yaml restart nginx
 ```
 
 **Option B: Local certs, auto-upload via script**

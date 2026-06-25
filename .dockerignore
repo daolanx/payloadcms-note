@@ -4,7 +4,8 @@ node_modules
 .env*
 !.env.example
 Dockerfile
-docker-compose*.yml
+Dockerfile.dev
+compose.yaml
 nginx.conf
 certs/
 backups/

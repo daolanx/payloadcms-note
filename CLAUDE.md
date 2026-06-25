@@ -15,11 +15,15 @@ pnpm start        # Start production server
 pnpm lint         # ESLint (flat config, eslint-config-next)
 
 # Docker (app only)
-docker compose up -d app --build
-docker compose down
+docker compose --profile prod up -d app --build
+docker compose --profile prod down
 
 # Docker (full stack with nginx, needs certs/ directory)
-docker compose up -d --build
+docker compose --profile prod up -d --build
+
+# Docker dev (hot reload with compose watch, dev profile)
+docker compose --profile dev watch
+pnpm docker:dev
 
 # Deployment scripts (local → ACR → ECS)
 ./scripts/build.sh [tag]
@@ -86,8 +90,10 @@ Payload URL:  /api/media/file/big.webp
 
 ### Docker
 
-- `Dockerfile` uses `node:22-alpine` + pnpm, multi-stage build with standalone output.
+- `Dockerfile` — production multi-stage build with standalone output, pnpm store cache mount.
+- `Dockerfile.dev` — development image with `WATCHPACK_POLLING=true` for container HMR.
 - `pnpm-workspace.yaml` needs `packages: ['.']` temporarily during `pnpm install` in build context.
+- Services use **profiles**: `app`+`nginx` in `prod` profile, `dev` in `dev` profile. Each profile runs independently, no port conflicts.
 
 ### CI/CD
 

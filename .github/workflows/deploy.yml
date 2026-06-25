@@ -58,7 +58,7 @@ jobs:
 
             cd ${{ env.DEPLOY_PATH }}
             IMAGE="${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-            sed -i "s|image:.*|image: $IMAGE|" docker-compose.yml
+            sed -i "s|image:.*|image: $IMAGE|" compose.yaml
 
-            docker compose pull
-            docker compose up -d --remove-orphans
+            docker compose --profile prod pull
+            docker compose --profile prod up -d --remove-orphans
