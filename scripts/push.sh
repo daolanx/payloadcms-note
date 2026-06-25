@@ -16,7 +16,7 @@ IMAGE_TAG="${1:-latest}"
 FULL_IMAGE="${ACR_REGISTRY}/${ACR_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 echo "▸ Logging in to ACR..."
-docker login --username="${ACR_USERNAME}" "${ACR_REGISTRY}"
+echo "${ACR_PASSWORD}" | docker login --username="${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
 
 echo "▸ Pushing: ${FULL_IMAGE}"
 docker push "${FULL_IMAGE}"

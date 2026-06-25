@@ -1,8 +1,7 @@
 services:
   app:
     profiles: ["prod"]
-    build: .
-    image: ${DOCKER_REGISTRY:-payload-notes-app}:${IMAGE_TAG:-latest}
+    image: crpi-l5xg3bxsmy58r36i.cn-hangzhou.personal.cr.aliyuncs.com/daolanx/payload-notes:latest
     container_name: notes-app
     restart: unless-stopped
     env_file: .env.local
@@ -21,7 +20,7 @@ services:
 
   nginx:
     profiles: ["prod"]
-    image: nginx:alpine
+    image: crpi-l5xg3bxsmy58r36i.cn-hangzhou.personal.cr.aliyuncs.com/daolanx/nginx:alpine
     container_name: notes-nginx
     restart: unless-stopped
     ports:
@@ -33,26 +32,3 @@ services:
     depends_on:
       app:
         condition: service_healthy
-
-  dev:
-    profiles: ["dev"]
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    container_name: notes-dev
-    env_file: .env.local
-    environment:
-      - WATCHPACK_POLLING=true
-      - HOSTNAME=0.0.0.0
-    ports:
-      - "3000:3000"
-    develop:
-      watch:
-        - action: sync
-          path: .
-          target: /app
-          ignore:
-            - node_modules/
-            - .next/
-        - action: rebuild
-          path: package.json

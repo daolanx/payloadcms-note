@@ -18,19 +18,29 @@ FULL_IMAGE="${ACR_REGISTRY}/${ACR_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 echo "▸ Deploying to ECS: ${ECS_HOST}"
 echo "  Image: ${FULL_IMAGE}"
 
+# Copy production compose file and nginx config to server
+scp -o StrictHostKeyChecking=no compose.prod.yaml "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/compose.yaml"
+scp -o StrictHostKeyChecking=no nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
+
 # SSH into ECS and deploy
-ssh "${ECS_USERNAME}@${ECS_HOST}" << EOF
+ssh -o StrictHostKeyChecking=no "${ECS_USERNAME}@${ECS_HOST}" << EOF
   cd ${DEPLOY_PATH}
 
-  # Login to ACR
-  docker login --username="${ACR_USERNAME}" "${ACR_REGISTRY}"
+  # Login to ACR for both podman and docker-compose
+  echo "${ACR_PASSWORD}" | podman login --username="${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
+  echo "${ACR_PASSWORD}" | docker login --username="${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
 
-  # Update image tag in compose.yaml
-  sed -i "s|image:.*|image: ${FULL_IMAGE}|" compose.yaml
+  # Fix docker config - use printf instead of echo -n for proper base64 encoding
+  printf '%s:%s' "${ACR_USERNAME}" "${ACR_PASSWORD}" | base64 > /tmp/auth_token.txt
+  AUTH_TOKEN=\$(cat /tmp/auth_token.txt)
+  printf '{"auths":{"%s":{"auth":"%s"}}}' "${ACR_REGISTRY}" "\$AUTH_TOKEN" > /root/.docker/config.json
+
+  # Update image tag in compose.yaml (only app service, not nginx)
+  sed -i '/app:/,/nginx:/{/image:/{s|image:.*|image: '"${FULL_IMAGE}"'|}}' compose.yaml
 
   # Pull and restart
-  docker compose --profile prod pull
-  docker compose --profile prod up -d --remove-orphans
+  docker-compose --profile prod pull
+  docker-compose --profile prod up -d --remove-orphans
 EOF
 
 echo "✓ Deployed to ${ECS_HOST}"
