@@ -3,8 +3,13 @@ import { lexicalEditor, FixedToolbarFeature } from '@payloadcms/richtext-lexical
 import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 
+// 统一的站点 URL 常量，确保 serverURL / cors / csrf 永远一致
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://218.244.153.47'
+
 export default buildConfig({
-  serverURL: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  serverURL: SITE_URL,
+  cors: [SITE_URL],
+  csrf: [],
   admin: {
     user: 'users',
   },
@@ -40,7 +45,13 @@ export default buildConfig({
   collections: [
     {
       slug: 'users',
-      auth: true,
+      auth: {
+        useSessions: false,
+        cookies: {
+          secure: false,
+          sameSite: 'Lax',
+        },
+      },
       admin: {
         useAsTitle: 'name',
       },
@@ -76,7 +87,7 @@ export default buildConfig({
       hooks: {
         afterChange: [
           async () => {
-            const url = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/revalidate`
+            const url = `${SITE_URL}/api/revalidate`
             await fetch(url, {
               method: 'POST',
               headers: {
@@ -89,7 +100,7 @@ export default buildConfig({
         ],
         afterDelete: [
           async () => {
-            const url = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/revalidate`
+            const url = `${SITE_URL}/api/revalidate`
             await fetch(url, {
               method: 'POST',
               headers: {

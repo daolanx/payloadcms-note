@@ -15,6 +15,12 @@ WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 
+# Patch Payload extractJWT: bypass Sec-Fetch-Site check for cookie auth
+# Chrome doesn't send Sec-Fetch-Site for AJAX requests, causing cookie auth to silently fail
+RUN sed -i '37s/return null;/return cookieToken;/' node_modules/payload/dist/auth/extractJWT.js
+
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NODE_ENV=production
 RUN --mount=type=cache,target=/app/.next/cache \
     pnpm build
