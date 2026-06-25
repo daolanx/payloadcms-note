@@ -242,11 +242,12 @@ docker login crpi-l5xg3bxsmy58r36i.cn-hangzhou.personal.cr.aliyuncs.com
 
 **Root cause:** PayloadCMS cookie auth requires the browser to send `Origin` or `Sec-Fetch-Site` header. Chrome doesn't send `Sec-Fetch-Site` for AJAX requests in HTTP environments, causing cookie auth to silently fail.
 
-**Temporary fix (HTTP):** Already applied in codebase:
-- `csrf: []` in `payload.config.ts` — disables Origin whitelist check
-- `Dockerfile` sed patch — bypasses Sec-Fetch-Site check in `extractJWT.js`
+**Temporary fix (HTTP):** Nginx layer Origin injection in `nginx.conf`:
+```nginx
+proxy_set_header Origin "http://$host";
+```
 
-**Permanent fix:** Deploy with HTTPS + domain. Browsers send `Sec-Fetch-Site: same-origin` correctly over HTTPS. After that, restore `csrf: ['https://your-domain.com']` and remove the Dockerfile patch.
+**Permanent fix:** Deploy with HTTPS + domain. Browsers send `Sec-Fetch-Site: same-origin` correctly over HTTPS. After that, restore `csrf: ['https://your-domain.com']` and remove the Nginx Origin injection.
 
 See [docs/bug-payload-csrf-cookie-auth.md](docs/bug-payload-csrf-cookie-auth.md) for full analysis.
 
