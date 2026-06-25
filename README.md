@@ -45,12 +45,16 @@ src/
 └── payload.config.ts        # Payload CMS configuration
 ```
 
-## Environment Variables
+## 1. Local Development
+
+### Environment Variables
 
 ```bash
-cp .env.example .env.local
-# Fill in all values — both app config and deploy config
+cp .env.example .env.local   # Create from template (first time only)
+vim .env.local               # Fill in the values below
 ```
+
+**App config** (required for local dev):
 
 | Variable | Description |
 |----------|-------------|
@@ -64,15 +68,8 @@ cp .env.example .env.local
 | `OSS_ACCESS_KEY_SECRET` | OSS access key secret |
 | `NEXT_PUBLIC_OSS_ENDPOINT` | OSS endpoint (exposed to client for image loader) |
 | `NEXT_PUBLIC_OSS_BUCKET` | OSS bucket (exposed to client for image loader) |
-| `ACR_REGISTRY` | ACR endpoint |
-| `ACR_NAMESPACE` | ACR namespace |
-| `ACR_USERNAME` | ACR username |
-| `IMAGE_NAME` | ACR repository name |
-| `ECS_HOST` | ECS server public IP |
-| `ECS_USERNAME` | ECS SSH username |
-| `DEPLOY_PATH` | Deploy directory on ECS |
 
-## 1. Local Development
+### Start Dev Server
 
 ```bash
 pnpm dev                    # http://localhost:3000
@@ -81,22 +78,32 @@ pnpm dev                    # http://localhost:3000
 docker compose --profile dev watch
 ```
 
-## 2. ECS Initialization
+## 2. Deployment (ECS)
 
-> Run on your **local machine** (not ECS). Prerequisites: repo cloned, SSH key configured.
+> Prerequisites: local dev working, `.env.local` configured, SSH key to ECS ready.
+
+### Deploy Config
+
+In addition to the app config above, add these to your `.env.local`:
+
+| Variable | Description |
+|----------|-------------|
+| `ACR_REGISTRY` | ACR endpoint |
+| `ACR_NAMESPACE` | ACR namespace |
+| `ACR_USERNAME` | ACR username |
+| `IMAGE_NAME` | ACR repository name |
+| `ECS_HOST` | ECS server public IP |
+| `ECS_USERNAME` | ECS SSH username |
+| `DEPLOY_PATH` | Deploy directory on ECS |
+
+### First-time ECS Setup
 
 ```bash
-# 1. Fill in .env.local with ECS_HOST and other deploy config
-cp .env.example .env.local
-vim .env.local
-
-# 2. Run setup
 ./scripts/setup-ecs.sh    # or: pnpm ecs:init
+# Installs Docker on ECS, uploads compose.yaml + nginx.conf + .env.local
 ```
 
-## 3. Manual Deployment
-
-Run three commands from your local machine:
+### Manual Deployment
 
 ```bash
 ./scripts/build.sh          # Build image locally
@@ -112,7 +119,7 @@ Or with a specific tag:
 ./scripts/deploy.sh v1.0.0
 ```
 
-## 4. GitHub Actions Deployment
+### GitHub Actions Deployment
 
 Push to `main` triggers automatic deployment:
 
