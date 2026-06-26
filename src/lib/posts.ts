@@ -61,6 +61,12 @@ export const getPost = unstable_cache(
 )
 
 export async function getAllPostSlugs(): Promise<string[]> {
+  // Skip database query during Docker build (no DB available)
+  // Pages will be rendered on-demand via ISR on first request
+  if (process.env.IS_DOCKER_BUILD === 'true') {
+    return []
+  }
+
   try {
     const payload = await getPayload({ config })
     const result = await payload.find({

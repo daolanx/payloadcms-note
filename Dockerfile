@@ -18,6 +18,7 @@ COPY . .
 ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NODE_ENV=production
+ENV IS_DOCKER_BUILD=true
 RUN --mount=type=cache,target=/app/.next/cache \
     pnpm build
 
