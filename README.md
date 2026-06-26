@@ -1,14 +1,12 @@
 # My Notes
 
-A notes app built with Next.js 16, Payload CMS 3, PostgreSQL, and Alibaba Cloud OSS.
+A full-stack notes application with a visual CMS admin panel, deployed on Alibaba Cloud ECS.
 
-## Features
+## Highlights
 
-- **SSG (Static Site Generation)** — pages are pre-rendered at build time, only regenerate on content edit
-- **Payload CMS Admin** — rich text editor with Markdown shortcuts, image upload, fixed toolbar
-- **OSS Image Optimization** — responsive images served directly from Alibaba Cloud OSS CDN
-- **On-demand Revalidation** — editing posts in admin auto-triggers page regeneration
-- **Lexical Editor** — bold, italic, headings, lists, links, blockquotes, image upload, and more
+- **ISR + On-demand Revalidation** — static pages for fast loading, auto-regenerated when content is edited in the admin panel
+- **CMS-powered Admin** — Lexical rich text editor with Markdown shortcuts, image upload, and fixed toolbar for managing posts
+- **OSS Image Pipeline** — responsive images with on-the-fly resize served from Alibaba Cloud OSS CDN
 
 ## Tech Stack
 
@@ -52,7 +50,6 @@ A notes app built with Next.js 16, Payload CMS 3, PostgreSQL, and Alibaba Cloud 
 ├── compose.prod.yaml            # Production compose (no build config)
 ├── Dockerfile                   # Production multi-stage build
 ├── Dockerfile.dev               # Development with hot reload
-├── Dockerfile.nginx             # nginx amd64 build
 └── nginx.conf                   # nginx reverse proxy config
 ```
 
@@ -99,7 +96,7 @@ In addition to the app config above, add these to your `.env.local`:
 
 | Variable | Description |
 |----------|-------------|
-| `ACR_REGISTRY` | ACR endpoint |
+| `ACR_REGISTRY` | ACR public endpoint (used for local build/push; deploy script auto-switches to VPC) |
 | `ACR_NAMESPACE` | ACR namespace |
 | `ACR_USERNAME` | ACR username |
 | `ACR_PASSWORD` | ACR login password (for non-interactive login) |
@@ -144,16 +141,6 @@ ssh root@<ECS_HOST>
 sudo systemctl start podman.socket
 sudo systemctl enable podman.socket
 sudo touch /etc/containers/nodocker  # Suppress warning
-```
-
-**Step 4: Build nginx image (first time only)**
-
-Since Docker Hub pulls arm64 images on Mac, we need to build amd64 nginx:
-
-```bash
-# Build amd64 nginx and push to ACR
-docker build --platform linux/amd64 -t <ACR_REGISTRY>/<ACR_NAMESPACE>/nginx:alpine -f Dockerfile.nginx .
-docker push <ACR_REGISTRY>/<ACR_NAMESPACE>/nginx:alpine
 ```
 
 ### Manual Deployment
@@ -264,14 +251,9 @@ docker compose --profile prod logs app
 
 **Error:** `exec /docker-entrypoint.sh: exec format error`
 
-**Cause:** nginx image is arm64 but ECS is amd64 (Mac builds arm64 by default).
+**Cause:** nginx image is arm64 but ECS is amd64.
 
-**Solution:** Build nginx with amd64 platform:
-```bash
-# Build nginx image with correct platform
-docker build --platform linux/amd64 -t <ACR_REGISTRY>/<ACR_NAMESPACE>/nginx:alpine -f Dockerfile.nginx .
-docker push <ACR_REGISTRY>/<ACR_NAMESPACE>/nginx:alpine
-```
+**Solution:** Docker Hub now serves multi-arch images correctly. If you still hit this, configure Docker mirror acceleration (see [Docker Hub Mirror Acceleration](https://docs.docker.com/engine/daemon/mirror/)) or pull explicitly with `docker pull --platform linux/amd64 nginx:alpine` on the ECS server.
 
 ### Podman and Docker credential separation
 

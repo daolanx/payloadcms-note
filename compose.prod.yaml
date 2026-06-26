@@ -20,7 +20,7 @@ services:
 
   nginx:
     profiles: ["prod"]
-    image: crpi-l5xg3bxsmy58r36i.cn-hangzhou.personal.cr.aliyuncs.com/daolanx/nginx:alpine
+    image: nginx:alpine
     container_name: notes-nginx
     restart: unless-stopped
     ports:

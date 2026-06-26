@@ -64,12 +64,15 @@ jobs:
           username: ${{ secrets.ECS_USERNAME }}
           key: ${{ secrets.ECS_SSH_KEY }}
           script: |
-            docker login ${{ env.ACR_REGISTRY }} \
+            # Use VPC endpoint on ECS (faster, no public bandwidth)
+            ACR_VPC=$(echo "${{ env.ACR_REGISTRY }}" | sed 's/\.cn-hangzhou\./-vpc.cn-hangzhou./')
+
+            docker login $ACR_VPC \
               -u ${{ env.ACR_USERNAME }} \
               -p ${{ secrets.ACR_PASSWORD }}
 
             cd ${{ env.DEPLOY_PATH }}
-            IMAGE="${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
+            IMAGE="$ACR_VPC/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
             sed -i "s|image:.*|image: $IMAGE|" compose.yaml
 
             docker compose --profile prod pull

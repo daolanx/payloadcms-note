@@ -3,7 +3,7 @@ import { lexicalEditor, FixedToolbarFeature } from '@payloadcms/richtext-lexical
 import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 
-// 统一的站点 URL 常量，确保 serverURL / cors / csrf 永远一致
+// Single site URL constant to keep serverURL / cors / csrf in sync
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://218.244.153.47'
 
 export default buildConfig({
