@@ -4,7 +4,7 @@ import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 
 // Single site URL constant to keep serverURL / cors / csrf in sync
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://218.244.153.47'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
 export default buildConfig({
   serverURL: SITE_URL,

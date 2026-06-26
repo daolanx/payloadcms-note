@@ -61,4 +61,4 @@ src/payload-types.ts
 deploy.tar.gz
 
 # documentation
-/docs/
+/docs/internal/
