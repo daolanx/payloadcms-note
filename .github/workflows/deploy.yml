@@ -56,6 +56,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Copy config files to ECS before deploying
+      - name: Upload config to ECS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USERNAME }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          source: "compose.yaml,nginx.conf"
+          target: ${{ env.DEPLOY_PATH }}
+
       # SSH into ECS, update image tag, pull and restart containers
       - name: Deploy to ECS
         uses: appleboy/ssh-action@v1.0.3
