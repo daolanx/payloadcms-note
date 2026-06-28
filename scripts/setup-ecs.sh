@@ -15,6 +15,13 @@ if [ -f .env.local ]; then
   set +a
 fi
 
+# Config files
+COMPOSE_FILE="compose.yaml"
+NGINX_HTTP="nginx.conf"
+NGINX_HTTPS="nginx-ssl.conf"
+ENV_FILE=".env.local"
+CERT_DIR="certs"
+
 echo "▸ Setting up ECS: ${ECS_HOST}"
 
 # Install Docker on ECS
@@ -51,19 +58,19 @@ EOF
 
 # Upload config files
 echo "▸ Uploading config files..."
-scp compose.yaml "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
-scp .env.local "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
+scp "${COMPOSE_FILE}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
+scp "${ENV_FILE}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 
 # Check SSL certs and enable HTTPS if present
-echo "▸ Checking SSL certs: certs/cert.pem certs/key.pem"
-if [ -f certs/cert.pem ] && [ -f certs/key.pem ]; then
+echo "▸ Checking SSL certs: ${CERT_DIR}/cert.pem ${CERT_DIR}/key.pem"
+if [ -f "${CERT_DIR}/cert.pem" ] && [ -f "${CERT_DIR}/key.pem" ]; then
   echo "▸ SSL certs found, using HTTPS config..."
-  scp certs/cert.pem certs/key.pem "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/certs/"
-  scp nginx-ssl.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
+  scp "${CERT_DIR}/cert.pem" "${CERT_DIR}/key.pem" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/certs/"
+  scp "${NGINX_HTTPS}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
   echo "✓ HTTPS enabled"
 else
   echo "⊘ SSL certs not found, using HTTP-only config"
-  scp nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
+  scp "${NGINX_HTTP}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 fi
 
 echo "✓ ECS setup complete: ${ECS_HOST}"
