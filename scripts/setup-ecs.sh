@@ -18,7 +18,7 @@ fi
 # Config files
 COMPOSE_FILE="compose.yaml"
 NGINX_HTTP="nginx.conf"
-NGINX_HTTPS="nginx-ssl.conf"
+NGINX_HTTPS="nginx-https.conf"
 ENV_FILE=".env.local"
 CERT_DIR="certs"
 
