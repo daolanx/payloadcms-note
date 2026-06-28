@@ -5,9 +5,15 @@ on:
   push:
     branches: [main]
 
+# Prevent concurrent deployments — cancel older in-progress runs
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 # ACR and deploy config from GitHub repo variables (non-sensitive)
 env:
   ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
+  ACR_VPC_REGISTRY: ${{ vars.ACR_VPC_REGISTRY }}
   ACR_NAMESPACE: ${{ vars.ACR_NAMESPACE }}
   ACR_USERNAME: ${{ vars.ACR_USERNAME }}
   IMAGE_NAME: ${{ vars.IMAGE_NAME }}
@@ -16,9 +22,49 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Validate all required secrets and variables are configured
+      - name: Preflight check
+        run: |
+          MISSING=()
+
+          # ACR config
+          for var in ACR_PASSWORD ACR_REGISTRY ACR_VPC_REGISTRY ACR_NAMESPACE ACR_USERNAME IMAGE_NAME; do
+            val="${!var}"
+            [ -z "$val" ] && MISSING+=("  $var")
+          done
+
+          # ECS config
+          for var in ECS_HOST ECS_SSH_KEY ECS_USERNAME DEPLOY_PATH; do
+            val="${!var}"
+            [ -z "$val" ] && MISSING+=("  $var")
+          done
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::Missing required secrets/variables:"
+            printf '%s\n' "${MISSING[@]}"
+            exit 1
+          fi
+
+          echo "All secrets and variables OK"
+        env:
+          # ACR
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
+          ACR_VPC_REGISTRY: ${{ vars.ACR_VPC_REGISTRY }}
+          ACR_NAMESPACE: ${{ vars.ACR_NAMESPACE }}
+          ACR_USERNAME: ${{ vars.ACR_USERNAME }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          # ECS
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_SSH_KEY: ${{ secrets.ECS_SSH_KEY }}
+          ECS_USERNAME: ${{ secrets.ECS_USERNAME }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
 
       - name: Extract short SHA
         id: meta
@@ -35,14 +81,6 @@ jobs:
       # Enable BuildKit for layer caching
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      # Cache pnpm store for faster dependency installation
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
 
       # Build image and push to ACR with short SHA + latest tags
       - name: Build and push
@@ -76,20 +114,43 @@ jobs:
           script: |
             set -e
 
-            # Use VPC endpoint on ECS (faster, no public bandwidth)
-            ACR_VPC=$(echo "${{ env.ACR_REGISTRY }}" | sed 's/\.cn-hangzhou\./-vpc.cn-hangzhou./')
+            ACR_VPC="${{ env.ACR_VPC_REGISTRY }}"
 
-            docker login $ACR_VPC \
+            echo "${{ secrets.ACR_PASSWORD }}" | docker login $ACR_VPC \
               -u ${{ env.ACR_USERNAME }} \
-              -p ${{ secrets.ACR_PASSWORD }}
+              --password-stdin
 
             cd ${{ env.DEPLOY_PATH }}
 
-            # Export image tag for docker compose
+            # Record current image for rollback
+            PREV_IMAGE=$(docker compose ps -q | head -1 | xargs docker inspect --format='{{.Config.Image}}' 2>/dev/null || echo "none")
+            echo "Previous image: $PREV_IMAGE"
+
             export APP_IMAGE="$ACR_VPC/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
+            echo "Deploying: $APP_IMAGE"
 
             docker compose pull
             docker compose up -d --remove-orphans
 
-            # Clean up old images to free disk space
-            docker image prune -f
+            # Health check with rollback on failure
+            for i in $(seq 1 12); do
+              UNHEALTHY=$(docker compose ps | grep -cE "Exit|Restarting" || true)
+              if [ "$UNHEALTHY" -eq 0 ]; then
+                echo "✓ All containers running"
+                break
+              fi
+              if [ "$i" -eq 12 ]; then
+                echo "::error::Deployment failed — rolling back to $PREV_IMAGE"
+                if [ "$PREV_IMAGE" != "none" ]; then
+                  export APP_IMAGE="$PREV_IMAGE"
+                  docker compose up -d --remove-orphans
+                fi
+                docker compose logs --tail=100
+                exit 1
+              fi
+              echo "Waiting for containers... ($i/12)"
+              sleep 5
+            done
+
+            # Clean up old images (only recent 72h to avoid removing other projects' caches)
+            docker image prune -f --filter "until=72h"

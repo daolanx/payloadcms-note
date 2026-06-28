@@ -126,7 +126,7 @@ This script will:
 - Install Docker (or Podman)
 - Install Docker Compose plugin
 - Install Portainer (visual container management)
-- Upload `compose.yaml` and nginx config
+- Upload `compose.yaml`, `.env.local`, and nginx config
 
 ### SSL Certificate
 
@@ -140,7 +140,7 @@ certbot certonly --standalone -d your-domain.com
 pnpm ecs:init
 ```
 
-After certificates are in place, uncomment the HTTPS block in `nginx.conf`.
+The setup and deploy scripts auto-detect SSL certificates in `certs/` and switch to HTTPS config automatically — no manual nginx editing needed.
 
 ### Option A: Manual Deployment
 
@@ -163,19 +163,26 @@ Or with a specific tag:
 ./scripts/deploy.sh v1.0.0
 ```
 
+Deploy script features:
+- Auto-selects HTTPS or HTTP nginx config based on local `certs/` directory
+- Uses VPC endpoint for faster image pull on ECS
+- Health check with automatic rollback on failure
+- Cleans up old images (older than 72h)
+
 ### Option B: CI/CD (GitHub Actions)
 
 Push to `main` triggers automatic deployment:
 
 ```
-Build Docker image (linux/amd64)
-  → Push to Alibaba Cloud ACR
-    → SSH to ECS
-      → Pull new image
-        → Restart services
+Preflight check (validate secrets/variables)
+  → Build Docker image (linux/amd64)
+    → Push to Alibaba Cloud ACR
+      → Upload config to ECS
+        → SSH to ECS → pull & restart
+          → Health check (auto-rollback on failure)
 ```
 
-BuildKit GHA cache enabled for faster subsequent builds.
+BuildKit GHA cache enabled for faster subsequent builds. Concurrent deployments are deduplicated automatically.
 
 ## 5. Daily Operations
 
