@@ -1,9 +1,9 @@
-# CI/CD pipeline: push to main → build image → push to ACR → deploy to ECS
+# CI/CD pipeline: push tag → build image → push to ACR → deploy to ECS
 name: Deploy to ECS
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
 
 # Prevent concurrent deployments — cancel older in-progress runs
 concurrency:

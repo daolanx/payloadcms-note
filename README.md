@@ -171,7 +171,7 @@ Deploy script features:
 
 ### Option B: CI/CD (GitHub Actions)
 
-Push to `main` triggers automatic deployment:
+Push tag (e.g. `v1.0.0`) triggers automatic deployment:
 
 ```
 Preflight check (validate secrets/variables)
