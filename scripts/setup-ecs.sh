@@ -51,16 +51,19 @@ EOF
 
 # Upload config files
 echo "▸ Uploading config files..."
-scp compose.yaml nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
+scp compose.yaml "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 scp .env.local "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 
-# Upload SSL certs if they exist locally
+# Check SSL certs and enable HTTPS if present
 echo "▸ Checking SSL certs: certs/cert.pem certs/key.pem"
 if [ -f certs/cert.pem ] && [ -f certs/key.pem ]; then
-  echo "▸ Uploading SSL certs..."
+  echo "▸ SSL certs found, using HTTPS config..."
   scp certs/cert.pem certs/key.pem "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/certs/"
+  scp nginx-ssl.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
+  echo "✓ HTTPS enabled"
 else
-  echo "⊘ SSL certs not found, skipping"
+  echo "⊘ SSL certs not found, using HTTP-only config"
+  scp nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 fi
 
 echo "✓ ECS setup complete: ${ECS_HOST}"
