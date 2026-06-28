@@ -20,6 +20,13 @@ for var in ACR_REGISTRY ACR_NAMESPACE ACR_USERNAME ACR_PASSWORD IMAGE_NAME ECS_H
   fi
 done
 
+# Config files
+COMPOSE_FILE="compose.yaml"
+NGINX_HTTP="nginx.conf"
+NGINX_HTTPS="nginx-https.conf"
+ENV_FILE=".env.local"
+CERT_DIR="certs"
+
 # Use VPC endpoint on ECS (faster, no public bandwidth)
 # Inserts -vpc after instance ID: crpi-xxx.cn-hangzhou... → crpi-xxx-vpc.cn-hangzhou...
 ACR_REGISTRY="${ACR_REGISTRY/.cn-hangzhou./-vpc.cn-hangzhou.}"
@@ -30,9 +37,15 @@ FULL_IMAGE="${ACR_REGISTRY}/${ACR_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 echo "Deploying to ECS: ${ECS_HOST}"
 echo "  Image: ${FULL_IMAGE}"
 
-# Copy production compose file and nginx config to server
-scp -o StrictHostKeyChecking=no compose.yaml "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/compose.yaml"
-scp -o StrictHostKeyChecking=no nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
+# Copy compose file to server
+scp -o StrictHostKeyChecking=no "${COMPOSE_FILE}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
+
+# Copy nginx config (HTTPS if certs exist, HTTP otherwise)
+if [ -f "${CERT_DIR}/cert.pem" ] && [ -f "${CERT_DIR}/key.pem" ]; then
+  scp -o StrictHostKeyChecking=no "${NGINX_HTTPS}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
+else
+  scp -o StrictHostKeyChecking=no "${NGINX_HTTP}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
+fi
 
 # SSH into ECS and deploy
 ssh -o StrictHostKeyChecking=no "${ECS_USERNAME}@${ECS_HOST}" << EOF
