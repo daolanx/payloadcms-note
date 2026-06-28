@@ -31,7 +31,7 @@ echo "Deploying to ECS: ${ECS_HOST}"
 echo "  Image: ${FULL_IMAGE}"
 
 # Copy production compose file and nginx config to server
-scp -o StrictHostKeyChecking=no compose.prod.yaml "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/compose.yaml"
+scp -o StrictHostKeyChecking=no compose.yaml "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/compose.yaml"
 scp -o StrictHostKeyChecking=no nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
 
 # SSH into ECS and deploy

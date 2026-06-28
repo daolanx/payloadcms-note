@@ -95,7 +95,7 @@ pnpm dev  # http://localhost:3000
 ### Docker Development (Hot Reload)
 
 ```bash
-docker compose watch
+docker compose -f compose.dev.yaml watch
 # or
 pnpm docker:dev
 ```
