@@ -12,6 +12,14 @@ if [ -f .env.local ]; then
   set +a
 fi
 
+# Ensure required env vars exist
+for var in ACR_REGISTRY ACR_USERNAME ACR_PASSWORD IMAGE_NAME; do
+  if [ -z "${!var}" ]; then
+    echo "Error: $var is not set"
+    exit 1
+  fi
+done
+
 IMAGE_TAG="${1:-latest}"
 FULL_IMAGE="${ACR_REGISTRY}/${ACR_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 
@@ -21,4 +29,4 @@ echo "${ACR_PASSWORD}" | docker login --username="${ACR_USERNAME}" --password-st
 echo "▸ Pushing: ${FULL_IMAGE}"
 docker push "${FULL_IMAGE}"
 
-echo "✓ Done"
+echo "✓ Done: ${FULL_IMAGE}"
