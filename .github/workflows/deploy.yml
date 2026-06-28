@@ -64,6 +64,8 @@ jobs:
           username: ${{ secrets.ECS_USERNAME }}
           key: ${{ secrets.ECS_SSH_KEY }}
           script: |
+            set -e
+
             # Use VPC endpoint on ECS (faster, no public bandwidth)
             ACR_VPC=$(echo "${{ env.ACR_REGISTRY }}" | sed 's/\.cn-hangzhou\./-vpc.cn-hangzhou./')
 
@@ -72,8 +74,12 @@ jobs:
               -p ${{ secrets.ACR_PASSWORD }}
 
             cd ${{ env.DEPLOY_PATH }}
-            IMAGE="$ACR_VPC/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
-            sed -i "s|image:.*|image: $IMAGE|" compose.yaml
 
-            docker compose --profile prod pull
-            docker compose --profile prod up -d --remove-orphans
+            # Export image tag for docker compose
+            export APP_IMAGE="$ACR_VPC/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
+
+            docker compose pull
+            docker compose up -d --remove-orphans
+
+            # Clean up old images to free disk space
+            docker image prune -f

@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "docker:dev": "docker compose --profile dev down 2>/dev/null; docker compose --profile dev watch",
+    "docker:dev": "docker compose down 2>/dev/null; docker compose watch",
     "docker:build": "bash scripts/build.sh",
     "docker:push": "bash scripts/push.sh",
     "docker:deploy": "bash scripts/deploy.sh",

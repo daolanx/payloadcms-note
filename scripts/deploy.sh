@@ -7,10 +7,18 @@ cd "$(dirname "$0")/.."
 
 # Load env vars from .env.local
 if [ -f .env.local ]; then
-  set +a
+  set -a
   source .env.local
   set +a
 fi
+
+# Ensure required env vars exist
+for var in ACR_REGISTRY ACR_NAMESPACE ACR_USERNAME ACR_PASSWORD IMAGE_NAME ECS_HOST ECS_USERNAME DEPLOY_PATH; do
+  if [ -z "${!var}" ]; then
+    echo "Error: $var is not set in .env.local"
+    exit 1
+  fi
+done
 
 # Use VPC endpoint on ECS (faster, no public bandwidth)
 # Inserts -vpc after instance ID: crpi-xxx.cn-hangzhou... → crpi-xxx-vpc.cn-hangzhou...
@@ -28,23 +36,22 @@ scp -o StrictHostKeyChecking=no nginx.conf "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY
 
 # SSH into ECS and deploy
 ssh -o StrictHostKeyChecking=no "${ECS_USERNAME}@${ECS_HOST}" << EOF
+  set -e
+
   cd ${DEPLOY_PATH}
 
-  # Login to ACR for both podman and docker
-  echo "${ACR_PASSWORD}" | podman login --username="${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
+  # Login to ACR
   echo "${ACR_PASSWORD}" | docker login --username="${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
 
-  # Fix docker config
-  printf '%s:%s' "${ACR_USERNAME}" "${ACR_PASSWORD}" | base64 > /tmp/auth_token.txt
-  AUTH_TOKEN=\$(cat /tmp/auth_token.txt)
-  printf '{"auths":{"%s":{"auth":"%s"}}}' "${ACR_REGISTRY}" "\$AUTH_TOKEN" > /root/.docker/config.json
-
-  # Update image tag in compose.yaml (only app service, not nginx)
-  sed -i '/app:/,/nginx:/{/image:/{s|image:.*|image: '"${FULL_IMAGE}"'|}}' compose.yaml
+  # Export image tag for docker compose
+  export APP_IMAGE="${FULL_IMAGE}"
 
   # Pull and restart
-  docker-compose --profile prod pull
-  docker-compose --profile prod up -d --remove-orphans
+  docker compose pull
+  docker compose up -d --remove-orphans
+
+  # Clean up old images to free disk space
+  docker image prune -f
 EOF
 
 echo "Deployed to ${ECS_HOST}"

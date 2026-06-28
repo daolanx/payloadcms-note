@@ -95,7 +95,7 @@ pnpm dev  # http://localhost:3000
 ### Docker Development (Hot Reload)
 
 ```bash
-docker compose --profile dev watch
+docker compose watch
 # or
 pnpm docker:dev
 ```
@@ -202,17 +202,17 @@ First visit: set admin password → select **Local** environment → manage cont
 # Check container status
 ssh root@<ECS_HOST>
 cd /opt/notes
-docker compose --profile prod ps
+docker compose ps
 
 # View logs
-docker compose --profile prod logs app
+docker compose logs app
 
 # Restart services
-docker compose --profile prod restart
+docker compose restart
 
 # Pull new image and restart
-docker compose --profile prod pull
-docker compose --profile prod up -d
+docker compose pull
+docker compose up -d
 ```
 
 ### Health Check
