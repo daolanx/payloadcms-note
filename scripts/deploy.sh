@@ -49,6 +49,11 @@ else
   scp -o StrictHostKeyChecking=no "${NGINX_HTTP}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
 fi
 
+# Upload 502 maintenance page
+echo "▸ Uploading 502.html..."
+ssh -o StrictHostKeyChecking=no "${ECS_USERNAME}@${ECS_HOST}" "mkdir -p ${DEPLOY_PATH}/nginx"
+scp -o StrictHostKeyChecking=no "nginx/502.html" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx/502.html"
+
 # SSH into ECS and deploy
 echo "▸ Connecting to ECS..."
 ssh -o StrictHostKeyChecking=no "${ECS_USERNAME}@${ECS_HOST}" << EOF
