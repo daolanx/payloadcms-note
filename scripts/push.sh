@@ -1,6 +1,8 @@
 #!/bin/bash
-# Push Docker image to Alibaba Cloud ACR
+# Push Docker image to Alibaba Cloud Container Registry (ACR).
+#
 # Usage: ./scripts/push.sh [tag]   (default: latest)
+# Reads ACR_REGISTRY, ACR_USERNAME, ACR_PASSWORD, ACR_NAMESPACE, IMAGE_NAME from .env.local
 set -e
 
 cd "$(dirname "$0")/.."

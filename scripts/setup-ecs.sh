@@ -1,9 +1,11 @@
 #!/bin/bash
 # First-time ECS setup:
-# 1. SSH into ECS → install Docker + Docker Compose
+# 1. SSH into ECS → install Docker + Docker Compose + Portainer
 # 2. Create deploy directory on ECS
-# 3. Upload compose.yaml, nginx.conf, .env.local
-# 4. Upload SSL certs if certs/cert.pem and certs/key.pem exist
+# 3. Upload docker/production/ and .env.local
+#
+# Usage: ./scripts/setup-ecs.sh
+# Reads ACR and ECS config from .env.local.
 set -e
 
 cd "$(dirname "$0")/.."
@@ -16,11 +18,8 @@ if [ -f .env.local ]; then
 fi
 
 # Config files
-COMPOSE_FILE="compose.yaml"
-NGINX_HTTP="nginx.conf"
-NGINX_HTTPS="nginx-https.conf"
+PROD_DIR="docker/production"
 ENV_FILE=".env.local"
-CERT_DIR="certs"
 
 echo "▸ Setting up ECS: ${ECS_HOST}"
 
@@ -64,27 +63,15 @@ ssh "${ECS_USERNAME}@${ECS_HOST}" << EOF
     echo "  → Portainer already installed"
   fi
 
-  mkdir -p ${DEPLOY_PATH}/certs
+  mkdir -p ${DEPLOY_PATH}/docker/production
   echo "  → Deploy directory ready"
 EOF
 
-# Upload config files
+# Upload production directory and env file
 echo "▸ Step 2: Uploading config files..."
-scp "${COMPOSE_FILE}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
-echo "  → ${COMPOSE_FILE} uploaded"
+scp -r "${PROD_DIR}/" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/docker/production/"
+echo "  → ${PROD_DIR}/ uploaded"
 scp "${ENV_FILE}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 echo "  → ${ENV_FILE} uploaded"
-
-# Check SSL certs and enable HTTPS if present
-echo "▸ Step 3: Checking SSL certs..."
-if [ -f "${CERT_DIR}/cert.pem" ] && [ -f "${CERT_DIR}/key.pem" ]; then
-  echo "  → SSL certs found, uploading..."
-  scp "${CERT_DIR}/cert.pem" "${CERT_DIR}/key.pem" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/certs/"
-  scp "${NGINX_HTTPS}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
-  echo "  → HTTPS config uploaded"
-else
-  echo "  → No SSL certs, using HTTP config"
-  scp "${NGINX_HTTP}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
-fi
 
 echo "✓ ECS setup complete: ${ECS_HOST}"

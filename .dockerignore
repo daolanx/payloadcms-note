@@ -3,8 +3,8 @@ node_modules
 .git
 .env*
 !.env.example
-Dockerfile
-Dockerfile.dev
+docker/development/Dockerfile
+docker/production/Dockerfile
 compose.yaml
 nginx.conf
 certs/

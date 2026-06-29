@@ -1,6 +1,10 @@
 #!/bin/bash
-# Deploy to ECS: SSH into server, pull latest image, restart containers
+# Deploy to ECS: upload production directory, pull latest image, restart containers.
+#
 # Usage: ./scripts/deploy.sh [tag]   (default: latest)
+# Reads ACR and ECS config from .env.local.
+# Uploads docker/production/ (compose, nginx, certs, 502 page) and .env.local to ECS.
+# Uses VPC endpoint for faster ACR pull. Rolls back on health check failure.
 set -e
 
 cd "$(dirname "$0")/.."
@@ -21,11 +25,8 @@ for var in ACR_REGISTRY ACR_NAMESPACE ACR_USERNAME ACR_PASSWORD IMAGE_NAME ECS_H
 done
 
 # Config files
-COMPOSE_FILE="compose.yaml"
-NGINX_HTTP="nginx.conf"
-NGINX_HTTPS="nginx-https.conf"
+PROD_DIR="docker/production"
 ENV_FILE=".env.local"
-CERT_DIR="certs"
 
 # Use VPC endpoint on ECS (faster, no public bandwidth)
 ACR_REGISTRY="${ACR_REGISTRY/.cn-hangzhou./-vpc.cn-hangzhou.}"
@@ -36,23 +37,14 @@ FULL_IMAGE="${ACR_REGISTRY}/${ACR_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
 echo "▸ Deploying to ECS: ${ECS_HOST}"
 echo "  Image: ${FULL_IMAGE}"
 
-# Copy compose file to server
-echo "▸ Uploading ${COMPOSE_FILE}..."
-scp -o StrictHostKeyChecking=no "${COMPOSE_FILE}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
+# Upload production directory (compose, nginx, certs, 502 page)
+echo "▸ Uploading ${PROD_DIR}/..."
+ssh -o StrictHostKeyChecking=no "${ECS_USERNAME}@${ECS_HOST}" "mkdir -p ${DEPLOY_PATH}/docker/production"
+scp -o StrictHostKeyChecking=no -r "${PROD_DIR}/" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/docker/production/"
 
-# Copy nginx config (HTTPS if certs exist, HTTP otherwise)
-if [ -f "${CERT_DIR}/cert.pem" ] && [ -f "${CERT_DIR}/key.pem" ]; then
-  echo "▸ SSL certs found, uploading HTTPS config..."
-  scp -o StrictHostKeyChecking=no "${NGINX_HTTPS}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
-else
-  echo "▸ No SSL certs, uploading HTTP config..."
-  scp -o StrictHostKeyChecking=no "${NGINX_HTTP}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx.conf"
-fi
-
-# Upload 502 maintenance page
-echo "▸ Uploading 502.html..."
-ssh -o StrictHostKeyChecking=no "${ECS_USERNAME}@${ECS_HOST}" "mkdir -p ${DEPLOY_PATH}/nginx"
-scp -o StrictHostKeyChecking=no "nginx/502.html" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/nginx/502.html"
+# Upload env file (compose references ../../.env.local)
+echo "▸ Uploading ${ENV_FILE}..."
+scp -o StrictHostKeyChecking=no "${ENV_FILE}" "${ECS_USERNAME}@${ECS_HOST}:${DEPLOY_PATH}/"
 
 # SSH into ECS and deploy
 echo "▸ Connecting to ECS..."
@@ -64,6 +56,8 @@ ssh -o StrictHostKeyChecking=no "${ECS_USERNAME}@${ECS_HOST}" << EOF
   # Login to ACR
   echo "▸ Logging in to ACR..."
   echo "${ACR_PASSWORD}" | docker login --username="${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
+
+  cd docker/production
 
   # Record current image for rollback
   PREV_IMAGE=\$(docker compose ps -q | head -1 | xargs docker inspect --format='{{.Config.Image}}' 2>/dev/null || echo "none")

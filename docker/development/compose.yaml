@@ -1,10 +1,10 @@
 services:
   dev:
     build:
-      context: .
-      dockerfile: Dockerfile.dev
+      context: ../..
+      dockerfile: docker/development/Dockerfile
     container_name: notes-dev
-    env_file: .env.local
+    env_file: ../../.env.local
     environment:
       - WATCHPACK_POLLING=true
       - HOSTNAME=0.0.0.0
@@ -13,7 +13,7 @@ services:
     develop:
       watch:
         - action: sync
-          path: .
+          path: ../..
           target: /app
           ignore:
             - node_modules/

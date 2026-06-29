@@ -3,7 +3,7 @@ services:
     image: ${APP_IMAGE}
     container_name: notes-app
     restart: unless-stopped
-    env_file: .env.local
+    env_file: ../../.env.local
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -27,7 +27,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certs:/etc/nginx/ssl:ro
-      - ./nginx/502.html:/usr/share/nginx/html/502.html:ro
+      - ./502.html:/usr/share/nginx/html/502.html:ro
     depends_on:
       app:
         condition: service_healthy

@@ -95,7 +95,7 @@ pnpm dev  # http://localhost:3000
 ### Docker Development (Hot Reload)
 
 ```bash
-docker compose -f compose.dev.yaml watch
+docker compose -f docker/development/compose.yaml watch
 # or
 pnpm docker:dev
 ```
@@ -126,7 +126,7 @@ This script will:
 - Install Docker (or Podman)
 - Install Docker Compose plugin
 - Install Portainer (visual container management)
-- Upload `compose.yaml`, `.env.local`, and nginx config
+- Upload `docker/production/`, `.env.local`
 
 ### SSL Certificate
 
@@ -140,7 +140,7 @@ certbot certonly --standalone -d your-domain.com
 pnpm ecs:init
 ```
 
-The setup and deploy scripts auto-detect SSL certificates in `certs/` and switch to HTTPS config automatically — no manual nginx editing needed.
+Certs are bundled in `docker/production/certs/`. Replace with real certs when ready.
 
 ### Option A: Manual Deployment
 
@@ -164,7 +164,7 @@ Or with a specific tag:
 ```
 
 Deploy script features:
-- Auto-selects HTTPS or HTTP nginx config based on local `certs/` directory
+- Always HTTPS — certs included in `docker/production/certs/`
 - Uses VPC endpoint for faster image pull on ECS
 - Health check with automatic rollback on failure
 - Cleans up old images (older than 72h)

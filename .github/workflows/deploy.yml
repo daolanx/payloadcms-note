@@ -87,6 +87,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: docker/production/Dockerfile
           push: true
           tags: |
             ${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}
@@ -94,14 +95,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Copy config files to ECS before deploying
+      # Copy production directory and env file to ECS before deploying
       - name: Upload config to ECS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USERNAME }}
           key: ${{ secrets.ECS_SSH_KEY }}
-          source: "compose.yaml,nginx.conf"
+          source: "docker/production/,.env.local"
           target: ${{ env.DEPLOY_PATH }}
 
       # SSH into ECS, update image tag, pull and restart containers
@@ -120,7 +121,7 @@ jobs:
               -u ${{ env.ACR_USERNAME }} \
               --password-stdin
 
-            cd ${{ env.DEPLOY_PATH }}
+            cd ${{ env.DEPLOY_PATH }}/docker/production
 
             # Record current image for rollback
             PREV_IMAGE=$(docker compose ps -q | head -1 | xargs docker inspect --format='{{.Config.Image}}' 2>/dev/null || echo "none")
