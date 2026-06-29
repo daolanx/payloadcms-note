@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "generate:importmap": "node scripts/generate-importmap.mjs",
     "docker:dev": "bash scripts/generate-certs.sh && docker compose -f docker/production/compose.yaml down 2>/dev/null; docker compose -f docker/production/compose.yaml watch",
     "docker:build": "bash scripts/build.sh",
     "docker:push-acr": "bash scripts/push.sh",
