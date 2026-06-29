@@ -2,7 +2,7 @@ services:
   app:
     image: ${APP_IMAGE}
     container_name: notes-app
-    restart: unless-stopped
+    restart: always
     env_file: ../../.env.local
     environment:
       - NODE_ENV=production
@@ -20,7 +20,7 @@ services:
   nginx:
     image: nginx:alpine
     container_name: notes-nginx
-    restart: unless-stopped
+    restart: always
     ports:
       - "80:80"
       - "443:443"
