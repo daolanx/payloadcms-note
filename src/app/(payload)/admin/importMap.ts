@@ -5,7 +5,7 @@ import { FolderTableCell as FolderTableCell_275r3u } from '@payloadcms/next/rsc'
 import { RscEntryLexicalCell as RscEntryLexicalCell_gjbu07 } from '@payloadcms/richtext-lexical/rsc';
 import { RscEntryLexicalField as RscEntryLexicalField_gjbu07 } from '@payloadcms/richtext-lexical/rsc';
 import { LexicalDiffComponent as LexicalDiffComponent_gjbu07 } from '@payloadcms/richtext-lexical/rsc';
-import { RenderServerComponent as RenderServerComponent_bfuig8 } from '@payloadcms/ui';
+import { RenderServerComponent as RenderServerComponent_1cmkg2b } from '@payloadcms/ui/elements/RenderServerComponent';
 
 export const importMap: Record<string, any> = {
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_275r3u,
@@ -14,5 +14,5 @@ export const importMap: Record<string, any> = {
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_gjbu07,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalField": RscEntryLexicalField_gjbu07,
   "@payloadcms/richtext-lexical/rsc#LexicalDiffComponent": LexicalDiffComponent_gjbu07,
-  "@payloadcms/ui#RenderServerComponent": RenderServerComponent_bfuig8
+  "@payloadcms/ui/elements/RenderServerComponent#RenderServerComponent": RenderServerComponent_1cmkg2b
 }

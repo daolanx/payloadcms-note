@@ -23,7 +23,7 @@ const COMPONENTS = [
   '@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell',
   '@payloadcms/richtext-lexical/rsc#RscEntryLexicalField',
   '@payloadcms/richtext-lexical/rsc#LexicalDiffComponent',
-  '@payloadcms/ui#RenderServerComponent',
+  '@payloadcms/ui/elements/RenderServerComponent#RenderServerComponent',
 ]
 
 /**
