@@ -7,6 +7,15 @@
  *
  * Usage: node scripts/generate-importmap.mjs
  * Output: src/app/(payload)/admin/importMap.ts
+ *
+ * When to run:
+ *   - After upgrading @payloadcms/* packages (new components may be added)
+ *   - After adding custom admin components to the COMPONENTS array below
+ *   - When Payload CLI generate:importmap is not available
+ *
+ * When NOT to run:
+ *   - Routine development (importMap rarely changes)
+ *   - CI/CD (generated file is committed to git)
  */
 import path from 'path'
 import fs from 'fs/promises'
