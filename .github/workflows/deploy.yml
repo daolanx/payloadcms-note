@@ -130,6 +130,7 @@ jobs:
             export APP_IMAGE="$ACR_VPC/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
             echo "Deploying: $APP_IMAGE"
 
+            docker compose down --remove-orphans
             docker compose pull
             docker compose up -d --remove-orphans
 
