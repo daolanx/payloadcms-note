@@ -46,6 +46,15 @@ ssh "${ECS_USERNAME}@${ECS_HOST}" << EOF
     echo "  → Docker Compose already installed"
   fi
 
+  # Ensure containers auto-restart after reboot
+  if command -v podman &> /dev/null; then
+    systemctl enable podman-restart.service 2>/dev/null || true
+    echo "  → Podman auto-restart enabled"
+  elif command -v docker &> /dev/null; then
+    systemctl enable docker 2>/dev/null || true
+    echo "  → Docker auto-restart enabled"
+  fi
+
   mkdir -p ${DEPLOY_PATH}/docker/production
   echo "  → Deploy directory ready"
 EOF
