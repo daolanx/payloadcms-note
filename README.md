@@ -118,7 +118,6 @@ This script will:
 - Create `/opt/notes` directory
 - Install Docker (or Podman)
 - Install Docker Compose plugin
-- Install Portainer (visual container management)
 - Upload `docker/production/`, `.env.local`
 
 ### SSL Certificate
@@ -187,23 +186,6 @@ Preflight check (validate secrets/variables)
 BuildKit GHA cache enabled for faster subsequent builds. Concurrent deployments are deduplicated automatically.
 
 ## 5. Daily Operations
-
-### Container Management (Portainer)
-
-For non-technical team members, Portainer provides a visual container management interface.
-
-**Access**: `http://<ECS_HOST>:9000`
-
-First visit: set admin password → select **Local** environment → manage containers.
-
-**Features**:
-- One-click container restart
-- View container logs
-- Start/stop containers
-- Resource usage monitoring
-- No command line required
-
-**Security Group**: Make sure port 9000 is open in ECS security group.
 
 ### Common Operations
 

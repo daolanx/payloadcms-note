@@ -1,6 +1,6 @@
 #!/bin/bash
 # First-time ECS setup:
-# 1. SSH into ECS → install Docker + Docker Compose + Portainer
+# 1. SSH into ECS → install Docker + Docker Compose
 # 2. Create deploy directory on ECS
 # 3. Upload docker/production/ and .env.local
 #
@@ -44,23 +44,6 @@ ssh "${ECS_USERNAME}@${ECS_HOST}" << EOF
     echo "  → Docker Compose installed"
   else
     echo "  → Docker Compose already installed"
-  fi
-
-  # Install Portainer (container management UI)
-  if ! docker ps -a --format '{{.Names}}' | grep -q portainer; then
-    echo "  → Installing Portainer from ACR..."
-    echo "${ACR_PASSWORD}" | docker login --username="${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
-    docker volume create portainer_data
-    docker run -d \
-      --name portainer \
-      --restart=always \
-      -p 9000:9000 \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      -v portainer_data:/data \
-      ${ACR_REGISTRY}/${ACR_NAMESPACE}/portainer:latest
-    echo "  → Portainer installed"
-  else
-    echo "  → Portainer already installed"
   fi
 
   mkdir -p ${DEPLOY_PATH}/docker/production
