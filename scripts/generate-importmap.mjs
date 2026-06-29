@@ -1,61 +1,22 @@
-import crypto from 'crypto'
+/**
+ * Generate Payload CMS import map (importMap.ts).
+ *
+ * Payload CLI (`payload generate:importmap`) crashes with ERR_REQUIRE_ASYNC_MODULE
+ * on Node 20/22 due to ESM/CJS conflicts in tsx. This script is a lightweight
+ * workaround that registers the default Payload admin components.
+ *
+ * Usage: node scripts/generate-importmap.mjs
+ * Output: src/app/(payload)/admin/importMap.ts
+ */
 import path from 'path'
 import fs from 'fs/promises'
 import { fileURLToPath } from 'url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
 
-function parsePayloadComponent(payloadComponent) {
-  if (typeof payloadComponent === 'string') {
-    const hashIndex = payloadComponent.indexOf('#')
-    if (hashIndex !== -1) {
-      return {
-        path: payloadComponent.substring(0, hashIndex),
-        exportName: payloadComponent.substring(hashIndex + 1)
-      }
-    }
-    return { path: payloadComponent, exportName: 'default' }
-  }
-  return payloadComponent
-}
-
-function addPayloadComponentToImportMap({ importMap, importMapToBaseDirPath, imports, payloadComponent }) {
-  if (!payloadComponent) return null
-
-  const { exportName, path: componentPath } = parsePayloadComponent(payloadComponent)
-
-  if (importMap[componentPath + '#' + exportName]) return null
-
-  const importIdentifier = exportName + '_' + crypto.createHash('md5').update(componentPath).digest('hex')
-
-  importMap[componentPath + '#' + exportName] = importIdentifier
-
-  const isRelativePath = componentPath.startsWith('.') || componentPath.startsWith('/')
-
-  if (isRelativePath) {
-    const normalizedBasePath = importMapToBaseDirPath.replace(/\\/g, '/')
-    const normalizedComponentPath = componentPath.replace(/\\/g, '/')
-    const cleanComponentPath = normalizedComponentPath.startsWith('./') ? normalizedComponentPath.substring(2) : normalizedComponentPath
-    const adjustedComponentPath = `${normalizedBasePath}${cleanComponentPath}`
-
-    imports[importIdentifier] = {
-      path: adjustedComponentPath,
-      specifier: exportName
-    }
-    return { path: adjustedComponentPath, specifier: exportName }
-  } else {
-    imports[importIdentifier] = {
-      path: componentPath,
-      specifier: exportName
-    }
-    return { path: componentPath, specifier: exportName }
-  }
-}
-
-// All components that Payload CMS 3 needs by default
-const defaultComponents = [
+/** Default Payload CMS admin components to register. */
+const COMPONENTS = [
   '@payloadcms/next/rsc#CollectionCards',
   '@payloadcms/next/rsc#FolderField',
   '@payloadcms/next/rsc#FolderTableCell',
@@ -65,46 +26,62 @@ const defaultComponents = [
   '@payloadcms/ui#RenderServerComponent',
 ]
 
+/**
+ * Parse a Payload component string into module path and export name.
+ * @param {string} component - e.g. "@payloadcms/next/rsc#CollectionCards"
+ * @returns {{ path: string, exportName: string }}
+ */
+function parseComponent(component) {
+  const hashIndex = component.indexOf('#')
+  if (hashIndex === -1) {
+    return { path: component, exportName: 'default' }
+  }
+  return {
+    path: component.substring(0, hashIndex),
+    exportName: component.substring(hashIndex + 1),
+  }
+}
+
+/**
+ * Generate import identifier from component path.
+ * Uses a short hash to avoid collisions while staying readable.
+ * @param {string} modulePath
+ * @param {string} exportName
+ * @returns {string}
+ */
+function toIdentifier(modulePath, exportName) {
+  // Simple hash from module path for uniqueness
+  let hash = 0
+  for (let i = 0; i < modulePath.length; i++) {
+    hash = ((hash << 5) - hash + modulePath.charCodeAt(i)) | 0
+  }
+  return `${exportName}_${(hash >>> 0).toString(36)}`
+}
+
 async function main() {
-  const importMap = {}
-  const imports = {}
-  const importMapToBaseDirPath = './'
+  const imports = []
+  const mapEntries = []
 
-  for (const component of defaultComponents) {
-    addPayloadComponentToImportMap({
-      importMap,
-      importMapToBaseDirPath,
-      imports,
-      payloadComponent: component
-    })
+  for (const component of COMPONENTS) {
+    const { path: modulePath, exportName } = parseComponent(component)
+    const identifier = toIdentifier(modulePath, exportName)
+
+    imports.push(`import { ${exportName} as ${identifier} } from '${modulePath}'`)
+    mapEntries.push(`  ${JSON.stringify(component)}: ${identifier}`)
   }
 
-  // Generate the import map file content
-  const importsArray = []
-  for (const [identifier, { path: importPath, specifier }] of Object.entries(imports)) {
-    importsArray.push(`import { ${specifier} as ${identifier} } from '${importPath}'`)
-  }
-
-  const mapKeys = []
-  for (const [userPath, identifier] of Object.entries(importMap)) {
-    mapKeys.push(`  ${JSON.stringify(userPath)}: ${identifier}`)
-  }
-
-  const content = `/* Auto-generated by generate-importmap script */
-${importsArray.join(';\n')};
+  const content = `/* Auto-generated by scripts/generate-importmap.mjs */
+${imports.join(';\n')};
 
 export const importMap: Record<string, any> = {
-${mapKeys.join(',\n')}
+${mapEntries.join(',\n')}
 }
 `
 
-  const importMapPath = path.resolve(rootDir, 'src/app/(payload)/admin/importMap.ts')
-  await fs.writeFile(importMapPath, content, 'utf-8')
-  console.log(`Import map written to: ${importMapPath}`)
-  console.log('Components registered:')
-  for (const component of defaultComponents) {
-    console.log(`  - ${component}`)
-  }
+  const outPath = path.resolve(rootDir, 'src/app/(payload)/admin/importMap.ts')
+  await fs.writeFile(outPath, content, 'utf-8')
+  console.log(`✓ Import map written to: ${outPath}`)
+  console.log(`  ${COMPONENTS.length} components registered`)
 }
 
-main().catch(console.error)
+main()
