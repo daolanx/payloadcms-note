@@ -34,7 +34,7 @@ cd "$DEPLOY_PATH/docker/production"
 
 # ─── 2. Record current image for rollback ───────────────────────────
 PREV_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$APP_CONTAINER" 2>/dev/null || echo "none")
-APP_IMAGE="$ACR_VPC_REGISTRY/$ACR_NAMESPACE/$IMAGE_NAME:$IMAGE_TAG"
+export APP_IMAGE="$ACR_VPC_REGISTRY/$ACR_NAMESPACE/$IMAGE_NAME:$IMAGE_TAG"
 
 echo "  Previous: $PREV_IMAGE"
 echo "  Deploying: $APP_IMAGE"
