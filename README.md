@@ -92,14 +92,6 @@ vim .env.local  # Fill in DATABASE_URI, OSS credentials, etc.
 pnpm dev  # http://localhost:3000
 ```
 
-### Docker Development (Hot Reload)
-
-```bash
-docker compose -f docker/development/compose.yaml watch
-# or
-pnpm docker:dev
-```
-
 ### Available Scripts
 
 | Script | Purpose |
@@ -107,7 +99,7 @@ pnpm docker:dev
 | `pnpm dev` | Start dev server with Turbopack |
 | `pnpm build` | Production build |
 | `pnpm lint` | ESLint |
-| `pnpm docker:dev` | Docker dev with hot reload |
+| `pnpm docker:dev` | Local production test (nginx + HTTPS) |
 | `pnpm docker:build` | Build Docker image |
 | `pnpm docker:push` | Push to Alibaba Cloud ACR |
 | `pnpm docker:deploy` | Deploy to ECS |

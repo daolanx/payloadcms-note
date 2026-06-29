@@ -14,12 +14,8 @@ pnpm build        # Production build
 pnpm start        # Start production server
 pnpm lint         # ESLint (flat config, eslint-config-next)
 
-# Docker dev (hot reload with compose watch)
-docker compose -f docker/development/compose.yaml watch
-pnpm docker:dev
-
 # Docker preview (local production test with nginx + HTTPS)
-pnpm docker:preview
+pnpm docker:dev
 
 # Deployment scripts (local → ACR → ECS)
 ./scripts/build.sh [tag]
