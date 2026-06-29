@@ -18,8 +18,8 @@ pnpm lint         # ESLint (flat config, eslint-config-next)
 docker compose -f docker/development/compose.yaml watch
 pnpm docker:dev
 
-# Docker prod (local production test with nginx + HTTPS)
-pnpm docker:prod
+# Docker preview (local production test with nginx + HTTPS)
+pnpm docker:preview
 
 # Deployment scripts (local → ACR → ECS)
 ./scripts/build.sh [tag]
