@@ -101,8 +101,8 @@ pnpm dev  # http://localhost:3000
 | `pnpm lint` | ESLint |
 | `pnpm docker:dev` | Local production test (nginx + HTTPS) |
 | `pnpm docker:build` | Build Docker image |
-| `pnpm docker:push` | Push to Alibaba Cloud ACR |
-| `pnpm docker:deploy` | Deploy to ECS |
+| `pnpm docker:push-acr` | Push image to Alibaba Cloud ACR |
+| `pnpm docker:deploy-ecs` | Deploy to ECS |
 | `pnpm ecs:init` | First-time ECS setup |
 
 ## 4. How to Deploy
