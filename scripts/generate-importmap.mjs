@@ -5,7 +5,7 @@
  * on Node 20/22 due to ESM/CJS conflicts in tsx. This script is a lightweight
  * workaround that registers the default Payload admin components.
  *
- * Usage: pnpm generate:importmap
+ * Usage: pnpm payload:gen-importmap
  * Output: src/app/(payload)/admin/importMap.ts
  *
  * When to run:

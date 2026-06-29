@@ -104,7 +104,7 @@ pnpm dev  # http://localhost:3000
 | `pnpm docker:push-acr` | Push image to Alibaba Cloud ACR |
 | `pnpm docker:deploy-ecs` | Deploy to ECS |
 | `pnpm ecs:init` | First-time ECS setup |
-| `pnpm generate:importmap` | Regenerate Payload admin import map |
+| `pnpm payload:gen-importmap` | Regenerate Payload admin import map |
 
 ## 4. How to Deploy
 
