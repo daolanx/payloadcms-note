@@ -113,7 +113,7 @@ jobs:
           username: ${{ secrets.ECS_USERNAME }}
           key: ${{ secrets.ECS_SSH_KEY }}
           script: |
-            set -e
+            set -euo pipefail
 
             ACR_VPC="${{ env.ACR_VPC_REGISTRY }}"
 
@@ -130,29 +130,64 @@ jobs:
             export APP_IMAGE="$ACR_VPC/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
             echo "Deploying: $APP_IMAGE"
 
-            docker compose down --remove-orphans
+            # Pull first while old container is still running (minimize downtime)
             docker compose pull
+
+            # Verify image exists locally before stopping old container
+            docker image inspect "$APP_IMAGE" > /dev/null 2>&1 || {
+              echo "::error::Image $APP_IMAGE not found locally after pull"
+              exit 1
+            }
+
+            # Stop old containers
+            docker compose down --remove-orphans
+
+            # Start new containers
             docker compose up -d --remove-orphans
 
-            # Health check with rollback on failure
-            for i in $(seq 1 12); do
-              UNHEALTHY=$(docker compose ps | grep -cE "Exit|Restarting" || true)
-              if [ "$UNHEALTHY" -eq 0 ]; then
-                echo "✓ All containers running"
+            # Health check — use compose healthcheck status (not just Exit/Restarting)
+            for i in $(seq 1 20); do
+              # Check if app container is healthy (compose healthcheck passes)
+              HEALTHY=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' notes-app 2>/dev/null || echo "missing")
+              RUNNING=$(docker inspect --format='{{.State.Running}}' notes-app 2>/dev/null || echo "false")
+
+              if [ "$HEALTHY" = "healthy" ] && [ "$RUNNING" = "true" ]; then
+                echo "✓ App container healthy"
                 break
               fi
-              if [ "$i" -eq 12 ]; then
-                echo "::error::Deployment failed — rolling back to $PREV_IMAGE"
-                if [ "$PREV_IMAGE" != "none" ]; then
-                  export APP_IMAGE="$PREV_IMAGE"
-                  docker compose up -d --remove-orphans
-                fi
-                docker compose logs --tail=100
-                exit 1
+
+              # If container exited or is missing, fail fast
+              if [ "$HEALTHY" = "missing" ] || [ "$RUNNING" = "false" ]; then
+                echo "::error::App container not running (health=$HEALTHY, running=$RUNNING)"
+                docker compose logs --tail=50 app
+                break
               fi
-              echo "Waiting for containers... ($i/12)"
+
+              if [ "$i" -eq 20 ]; then
+                echo "::error::Health check timed out after 100s (health=$HEALTHY)"
+                docker compose logs --tail=100
+              fi
+
+              echo "Waiting for app to become healthy... ($i/20, status=$HEALTHY)"
               sleep 5
             done
 
+            # Final status check — if unhealthy, rollback
+            FINAL_HEALTH=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' notes-app 2>/dev/null || echo "missing")
+            if [ "$FINAL_HEALTH" != "healthy" ]; then
+              echo "::error::Deployment failed — rolling back to $PREV_IMAGE"
+              if [ "$PREV_IMAGE" != "none" ]; then
+                export APP_IMAGE="$PREV_IMAGE"
+                docker compose down --remove-orphans
+                docker compose up -d --remove-orphans
+                echo "Rollback to $PREV_IMAGE completed"
+              else
+                echo "No previous image to rollback to"
+              fi
+              exit 1
+            fi
+
             # Clean up old images (only recent 72h to avoid removing other projects' caches)
             docker image prune -f --filter "until=72h"
+
+            echo "✓ Deployment successful"
