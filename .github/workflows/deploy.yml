@@ -123,8 +123,8 @@ jobs:
 
             cd ${{ env.DEPLOY_PATH }}/docker/production
 
-            # Record current image for rollback
-            PREV_IMAGE=$(docker compose ps -q | head -1 | xargs docker inspect --format='{{.Config.Image}}' 2>/dev/null || echo "none")
+            # Record current image for rollback (inspect directly, not via compose)
+            PREV_IMAGE=$(docker inspect --format='{{.Config.Image}}' notes-app 2>/dev/null || echo "none")
             echo "Previous image: $PREV_IMAGE"
 
             export APP_IMAGE="$ACR_VPC/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
@@ -139,8 +139,10 @@ jobs:
               exit 1
             }
 
-            # Stop old containers
-            docker compose down --remove-orphans
+            # Stop and remove old containers by name (compose down may not
+            # find them if they belong to a different compose project)
+            docker stop notes-app notes-nginx 2>/dev/null || true
+            docker rm notes-app notes-nginx 2>/dev/null || true
 
             # Start new containers
             docker compose up -d --remove-orphans
@@ -178,7 +180,8 @@ jobs:
               echo "::error::Deployment failed — rolling back to $PREV_IMAGE"
               if [ "$PREV_IMAGE" != "none" ]; then
                 export APP_IMAGE="$PREV_IMAGE"
-                docker compose down --remove-orphans
+                docker stop notes-app notes-nginx 2>/dev/null || true
+                docker rm notes-app notes-nginx 2>/dev/null || true
                 docker compose up -d --remove-orphans
                 echo "Rollback to $PREV_IMAGE completed"
               else
