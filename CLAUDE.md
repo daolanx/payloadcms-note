@@ -22,10 +22,7 @@ pnpm payload:gen-importmap
 # Docker preview (local production test with nginx + HTTPS)
 pnpm docker:dev
 
-# Deployment scripts (local → ACR → ECS)
-./scripts/build.sh [tag]
-./scripts/push.sh [tag]
-./scripts/deploy.sh [tag]
+# Deployment
 pnpm ecs:init     # First-time ECS setup
 ```
 

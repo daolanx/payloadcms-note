@@ -95,17 +95,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Copy production directory and env file to ECS before deploying
+      # Copy config + deploy script to ECS
       - name: Upload config to ECS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USERNAME }}
           key: ${{ secrets.ECS_SSH_KEY }}
-          source: "docker/production/,.env.local"
+          source: "docker/production/,.env.local,scripts/deploy-ecs.sh"
           target: ${{ env.DEPLOY_PATH }}
 
-      # SSH into ECS, update image tag, pull and restart containers
+      # SSH into ECS and run deploy script
       - name: Deploy to ECS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -113,84 +113,11 @@ jobs:
           username: ${{ secrets.ECS_USERNAME }}
           key: ${{ secrets.ECS_SSH_KEY }}
           script: |
-            set -euo pipefail
-
-            ACR_VPC="${{ env.ACR_VPC_REGISTRY }}"
-
-            echo "${{ secrets.ACR_PASSWORD }}" | docker login $ACR_VPC \
-              -u ${{ env.ACR_USERNAME }} \
-              --password-stdin
-
-            cd ${{ env.DEPLOY_PATH }}/docker/production
-
-            # Record current image for rollback (inspect directly, not via compose)
-            PREV_IMAGE=$(docker inspect --format='{{.Config.Image}}' notes-app 2>/dev/null || echo "none")
-            echo "Previous image: $PREV_IMAGE"
-
-            export APP_IMAGE="$ACR_VPC/${{ env.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.SHORT_SHA }}"
-            echo "Deploying: $APP_IMAGE"
-
-            # Pull first while old container is still running (minimize downtime)
-            docker compose pull
-
-            # Verify image exists locally before stopping old container
-            docker image inspect "$APP_IMAGE" > /dev/null 2>&1 || {
-              echo "::error::Image $APP_IMAGE not found locally after pull"
-              exit 1
-            }
-
-            # Stop and remove old containers by name (compose down may not
-            # find them if they belong to a different compose project)
-            docker stop notes-app notes-nginx 2>/dev/null || true
-            docker rm notes-app notes-nginx 2>/dev/null || true
-
-            # Start new containers
-            docker compose up -d --remove-orphans
-
-            # Health check — use compose healthcheck status (not just Exit/Restarting)
-            for i in $(seq 1 20); do
-              # Check if app container is healthy (compose healthcheck passes)
-              HEALTHY=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' notes-app 2>/dev/null || echo "missing")
-              RUNNING=$(docker inspect --format='{{.State.Running}}' notes-app 2>/dev/null || echo "false")
-
-              if [ "$HEALTHY" = "healthy" ] && [ "$RUNNING" = "true" ]; then
-                echo "✓ App container healthy"
-                break
-              fi
-
-              # If container exited or is missing, fail fast
-              if [ "$HEALTHY" = "missing" ] || [ "$RUNNING" = "false" ]; then
-                echo "::error::App container not running (health=$HEALTHY, running=$RUNNING)"
-                docker compose logs --tail=50 app
-                break
-              fi
-
-              if [ "$i" -eq 20 ]; then
-                echo "::error::Health check timed out after 100s (health=$HEALTHY)"
-                docker compose logs --tail=100
-              fi
-
-              echo "Waiting for app to become healthy... ($i/20, status=$HEALTHY)"
-              sleep 5
-            done
-
-            # Final status check — if unhealthy, rollback
-            FINAL_HEALTH=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' notes-app 2>/dev/null || echo "missing")
-            if [ "$FINAL_HEALTH" != "healthy" ]; then
-              echo "::error::Deployment failed — rolling back to $PREV_IMAGE"
-              if [ "$PREV_IMAGE" != "none" ]; then
-                export APP_IMAGE="$PREV_IMAGE"
-                docker stop notes-app notes-nginx 2>/dev/null || true
-                docker rm notes-app notes-nginx 2>/dev/null || true
-                docker compose up -d --remove-orphans
-                echo "Rollback to $PREV_IMAGE completed"
-              else
-                echo "No previous image to rollback to"
-              fi
-              exit 1
-            fi
-
-            # Clean up old images (only recent 72h to avoid removing other projects' caches)
-            docker image prune -f --filter "until=72h"
-
-            echo "✓ Deployment successful"
+            export ACR_VPC_REGISTRY="${{ env.ACR_VPC_REGISTRY }}"
+            export ACR_NAMESPACE="${{ env.ACR_NAMESPACE }}"
+            export ACR_USERNAME="${{ env.ACR_USERNAME }}"
+            export ACR_PASSWORD="${{ secrets.ACR_PASSWORD }}"
+            export IMAGE_NAME="${{ env.IMAGE_NAME }}"
+            export IMAGE_TAG="${{ steps.meta.outputs.SHORT_SHA }}"
+            export DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+            bash "${{ env.DEPLOY_PATH }}/scripts/deploy-ecs.sh"

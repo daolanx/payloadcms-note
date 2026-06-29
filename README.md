@@ -100,9 +100,6 @@ pnpm dev  # http://localhost:3000
 | `pnpm build` | Production build |
 | `pnpm lint` | ESLint |
 | `pnpm docker:dev` | Local production test (nginx + HTTPS) |
-| `pnpm docker:build` | Build Docker image |
-| `pnpm docker:push-acr` | Push image to Alibaba Cloud ACR |
-| `pnpm docker:deploy-ecs` | Deploy to ECS |
 | `pnpm ecs:init` | First-time ECS setup |
 | `pnpm payload:gen-importmap` | Regenerate Payload admin import map |
 
@@ -143,34 +140,7 @@ certbot certonly --standalone -d your-domain.com
 # Then copy certs to /opt/notes/docker/production/certs/ and restart nginx
 ```
 
-### Option A: Manual Deployment
-
-```bash
-# Build image locally (linux/amd64 for ECS compatibility)
-./scripts/build.sh
-
-# Push to Alibaba Cloud ACR
-./scripts/push.sh
-
-# SSH to ECS, pull and restart
-./scripts/deploy.sh
-```
-
-Or with a specific tag:
-
-```bash
-./scripts/build.sh v1.0.0
-./scripts/push.sh v1.0.0
-./scripts/deploy.sh v1.0.0
-```
-
-Deploy script features:
-- Always HTTPS — SSL certs required on ECS (see [SSL Certificate](#ssl-certificate))
-- Uses VPC endpoint for faster image pull on ECS
-- Health check with automatic rollback on failure
-- Cleans up old images (older than 72h)
-
-### Option B: CI/CD (GitHub Actions)
+### Deployment (GitHub Actions)
 
 Push tag (e.g. `v1.0.0`) triggers automatic deployment:
 

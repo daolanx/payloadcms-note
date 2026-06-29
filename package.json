@@ -10,9 +10,6 @@
     "lint": "eslint",
     "payload:gen-importmap": "node scripts/generate-importmap.mjs",
     "docker:dev": "bash scripts/generate-certs.sh && docker compose -f docker/production/compose.yaml down 2>/dev/null; docker compose -f docker/production/compose.yaml watch",
-    "docker:build": "bash scripts/build.sh",
-    "docker:push-acr": "bash scripts/push.sh",
-    "docker:deploy-ecs": "bash scripts/deploy.sh",
     "ecs:init": "bash scripts/setup-ecs.sh"
   },
   "dependencies": {
