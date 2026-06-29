@@ -94,6 +94,25 @@ PREV_IMAGE=$(docker inspect --format='{{.Config.Image}}' notes-app 2>/dev/null |
 
 ## Networking
 
+### Nginx Crash-Loop: Missing SSL Certs
+
+**Symptom**: `notes-nginx` exits immediately with code 1, site unreachable on port 80/443.
+
+**Cause**: `certs/` is gitignored — no certificate files exist on the ECS server. Nginx requires valid SSL certs at `/etc/nginx/ssl/cert.pem` and `key.pem`.
+
+**Fix**: After `ecs:init`, SSH into ECS and generate self-signed certs:
+
+```bash
+cd /opt/notes/docker/production
+mkdir -p certs
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout certs/key.pem -out certs/cert.pem \
+  -subj "/CN=your-server-ip"
+docker restart notes-nginx
+```
+
+> **Note**: `scripts/generate-certs.sh` generates certs locally with `CN=localhost` — not suitable for ECS. Always generate certs on the server or use a real domain with Let's Encrypt.
+
 ### Docker Hub Mirror Acceleration (Domestic)
 
 **Symptom**: `docker pull` extremely slow or times out in certain regions.

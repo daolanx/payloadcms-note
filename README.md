@@ -130,17 +130,26 @@ This script will:
 
 ### SSL Certificate
 
-Two options:
+> **Note**: `certs/` is gitignored — nginx will crash without valid certs on the ECS server.
+
+After `ecs:init`, SSH into ECS and generate self-signed certs (or upload your own):
 
 ```bash
-# Option 1: Certbot on ECS
-certbot certonly --standalone -d your-domain.com
-
-# Option 2: Local certs, auto-upload via script
-pnpm ecs:init
+# On ECS
+cd /opt/notes/docker/production
+mkdir -p certs
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout certs/key.pem -out certs/cert.pem \
+  -subj "/CN=your-server-ip"
+docker restart notes-nginx
 ```
 
-Certs are bundled in `docker/production/certs/`. Replace with real certs when ready.
+For production, replace with real certs (e.g. via Let's Encrypt):
+
+```bash
+certbot certonly --standalone -d your-domain.com
+# Then copy certs to /opt/notes/docker/production/certs/ and restart nginx
+```
 
 ### Option A: Manual Deployment
 
@@ -164,7 +173,7 @@ Or with a specific tag:
 ```
 
 Deploy script features:
-- Always HTTPS — certs included in `docker/production/certs/`
+- Always HTTPS — SSL certs required on ECS (see [SSL Certificate](#ssl-certificate))
 - Uses VPC endpoint for faster image pull on ECS
 - Health check with automatic rollback on failure
 - Cleans up old images (older than 72h)
