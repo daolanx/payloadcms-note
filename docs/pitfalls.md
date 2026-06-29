@@ -94,6 +94,21 @@ PREV_IMAGE=$(docker inspect --format='{{.Config.Image}}' notes-app 2>/dev/null |
 
 ## Networking
 
+### HTTPS Unreachable: Missing Security Group Rule for Port 443
+
+**Symptom**: HTTP (port 80) works and redirects to HTTPS, but HTTPS (port 443) times out. Server firewall is fine, nginx is running internally.
+
+**Cause**: Cloud provider security group only has port 80 open, not 443. Common oversight when setting up — the app was initially deployed with HTTP only, and the HTTPS port was never added.
+
+**Fix**: Add an inbound rule in the cloud console (e.g. Alibaba Cloud ECS → Security Group → Ingress):
+
+| Field | Value |
+|-------|-------|
+| Protocol | TCP |
+| Port Range | 443/443 |
+| Source | 0.0.0.0/0 |
+| Description | HTTPS |
+
 ### Nginx Crash-Loop: Missing SSL Certs
 
 **Symptom**: `notes-nginx` exits immediately with code 1, site unreachable on port 80/443.
