@@ -16,13 +16,20 @@ set -euo pipefail
 APP_CONTAINER="notes-app"
 
 # Detect compose command (podman-compose vs docker compose)
+# Verify the command actually works before selecting it
+COMPOSE=""
 if command -v podman-compose &>/dev/null; then
-  COMPOSE="podman-compose"
-elif docker compose version &>/dev/null 2>&1; then
+  if podman-compose version &>/dev/null 2>&1; then
+    COMPOSE="podman-compose"
+  fi
+fi
+if [ -z "$COMPOSE" ] && docker compose version &>/dev/null 2>&1; then
   COMPOSE="docker compose"
-elif command -v docker-compose &>/dev/null; then
+fi
+if [ -z "$COMPOSE" ] && command -v docker-compose &>/dev/null; then
   COMPOSE="docker-compose"
-else
+fi
+if [ -z "$COMPOSE" ]; then
   echo "::error::No compose tool found"
   exit 1
 fi
