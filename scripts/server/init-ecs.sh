@@ -13,7 +13,7 @@ set -e
 
 # Resolve paths relative to this script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
+DEPLOY_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Load .env.local if present (for ACR_*, NEXT_PUBLIC_SITE_URL, etc.)
 if [ -f "$DEPLOY_DIR/.env.local" ]; then
@@ -28,61 +28,82 @@ echo "  Host: $(hostname)"
 echo "  Deploy: $DEPLOY_DIR"
 echo "============================================"
 
-# ---- Step 1: Docker ------------------------------------------------
+# ---- Step 1: Docker / Podman ----------------------------------------
 echo ""
 echo "▸ [1/4] Checking Docker..."
 
-if command -v docker &>/dev/null; then
+# Detect runtime: podman or docker
+RUNTIME=""
+if command -v podman &>/dev/null; then
+  RUNTIME="podman"
+  echo "  → Podman already installed: $(podman --version)"
+elif command -v docker &>/dev/null; then
+  RUNTIME="docker"
   echo "  → Docker already installed: $(docker --version)"
 else
   echo "  → Installing Docker..."
   yum install -y yum-utils
-  # 优先使用阿里云镜像源（国内 ECS 速度快）
   yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo 2>/dev/null \
     || yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
   yum install -y docker-ce docker-ce-cli containerd.io
+  RUNTIME="docker"
   echo "  → Docker installed: $(docker --version)"
 fi
 
-systemctl enable docker
-systemctl start docker
-echo "  → Docker service enabled and started"
+# Enable service (podman or docker)
+if [ "$RUNTIME" = "podman" ]; then
+  systemctl enable podman 2>/dev/null || systemctl enable podman-restart.service 2>/dev/null || true
+else
+  systemctl enable docker
+  systemctl start docker
+fi
+echo "  → $RUNTIME service enabled"
 
 # ---- Step 2: Docker Compose ----------------------------------------
 echo ""
 echo "▸ [2/4] Checking Docker Compose..."
 
-if docker compose version &>/dev/null; then
-  echo "  → Docker Compose plugin already installed: $(docker compose version)"
-elif command -v docker-compose &>/dev/null; then
-  echo "  → docker-compose already installed: $(docker-compose --version)"
-else
-  echo "  → Installing Docker Compose plugin..."
-
-  # 优先 yum 安装（国内 ECS 最快，无需访问 GitHub）
-  if yum install -y docker-compose-plugin 2>/dev/null; then
-    echo "  → Docker Compose plugin installed via yum"
+# Determine compose command based on runtime
+if [ "$RUNTIME" = "podman" ]; then
+  COMPOSE_CMD="podman-compose"
+  if command -v podman-compose &>/dev/null; then
+    echo "  → podman-compose already installed: $(podman-compose --version)"
   else
-    # 兜底：直接下载二进制
-    echo "  → Falling back to binary download..."
-    COMPOSE_URL="https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)"
-    curl -fSL "$COMPOSE_URL" -o /usr/local/bin/docker-compose || {
-      echo "  ✗ Docker Compose install failed."
-      echo "  → Please install manually: https://docs.docker.com/compose/install/"
-      exit 1
-    }
-    chmod +x /usr/local/bin/docker-compose
-    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-    echo "  → Docker Compose binary installed"
+    echo "  → Installing podman-compose..."
+    pip3 install podman-compose 2>/dev/null \
+      || pip install podman-compose 2>/dev/null \
+      || { echo "  ✗ podman-compose install failed"; exit 1; }
+    echo "  → podman-compose installed"
+  fi
+else
+  COMPOSE_CMD="docker compose"
+  if docker compose version &>/dev/null; then
+    echo "  → Docker Compose plugin already installed: $(docker compose version)"
+  elif command -v docker-compose &>/dev/null; then
+    COMPOSE_CMD="docker-compose"
+    echo "  → docker-compose already installed: $(docker-compose --version)"
+  else
+    echo "  → Installing Docker Compose plugin..."
+    if yum install -y docker-compose-plugin 2>/dev/null; then
+      echo "  → Docker Compose plugin installed via yum"
+    else
+      echo "  → Falling back to binary download..."
+      COMPOSE_URL="https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)"
+      curl -fSL "$COMPOSE_URL" -o /usr/local/bin/docker-compose || {
+        echo "  ✗ Docker Compose install failed."
+        exit 1
+      }
+      chmod +x /usr/local/bin/docker-compose
+      ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+      COMPOSE_CMD="docker-compose"
+      echo "  → Docker Compose binary installed"
+    fi
   fi
 fi
 
-# ---- Step 3: Auto-restart on reboot --------------------------------
+# ---- Step 3: Auto-restart on reboot (already done in Step 1) --------
 echo ""
-echo "▸ [3/4] Configuring auto-restart..."
-
-systemctl enable docker 2>/dev/null || true
-echo "  → Docker auto-restart enabled"
+echo "▸ [3/4] Auto-restart already configured"
 
 # ---- Step 4: Verify deploy structure --------------------------------
 echo ""

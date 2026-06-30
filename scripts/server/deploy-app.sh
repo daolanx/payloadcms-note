@@ -15,6 +15,19 @@ set -euo pipefail
 # ─── Config ─────────────────────────────────────────────────────────
 APP_CONTAINER="notes-app"
 
+# Detect compose command (podman-compose vs docker compose)
+if command -v podman-compose &>/dev/null; then
+  COMPOSE="podman-compose"
+elif docker compose version &>/dev/null 2>&1; then
+  COMPOSE="docker compose"
+elif command -v docker-compose &>/dev/null; then
+  COMPOSE="docker-compose"
+else
+  echo "::error::No compose tool found"
+  exit 1
+fi
+echo "  Using: $COMPOSE"
+
 # ─── 0. Validate required env vars ──────────────────────────────────
 REQUIRED_VARS="ACR_VPC_REGISTRY ACR_NAMESPACE ACR_USERNAME ACR_PASSWORD IMAGE_NAME IMAGE_TAG DEPLOY_PATH"
 for var in $REQUIRED_VARS; do
@@ -40,7 +53,7 @@ echo "  Previous: $PREV_IMAGE"
 echo "  Deploying: $APP_IMAGE"
 
 # ─── 3. Pull new image (old container still running) ────────────────
-docker compose pull app
+$COMPOSE pull app
 
 # ─── 4. Verify image exists locally ─────────────────────────────────
 docker image inspect "$APP_IMAGE" > /dev/null 2>&1 || {
@@ -49,7 +62,7 @@ docker image inspect "$APP_IMAGE" > /dev/null 2>&1 || {
 }
 
 # ─── 5. Replace app container (nginx stays online) ──────────────────
-docker compose up -d --force-recreate --no-deps --remove-orphans app
+$COMPOSE up -d --force-recreate --no-deps --remove-orphans app
 
 # ─── 6. Health check ────────────────────────────────────────────────
 HAS_HEALTH=$(docker inspect --format='{{if .State.Health}}true{{else}}false{{end}}' "$APP_CONTAINER" 2>/dev/null || echo "false")
@@ -69,14 +82,14 @@ else
     # Container crashed — fail fast
     if [ "$HEALTHY" = "missing" ] || [ "$RUNNING" = "false" ]; then
       echo "::error::App not running (health=$HEALTHY, running=$RUNNING)"
-      docker compose logs --tail=50 app
+      $COMPOSE logs --tail=50 app
       break
     fi
 
     # Last iteration — timeout
     if [ "$i" -eq 20 ]; then
       echo "::error::Health check timed out (health=$HEALTHY)"
-      docker compose logs --tail=100
+      $COMPOSE logs --tail=100
       break
     fi
 
@@ -94,7 +107,7 @@ if [ "$FINAL_HEALTH" != "healthy" ]; then
   echo "::error::Deployment failed — rolling back"
   if [ "$PREV_IMAGE" != "none" ]; then
     export APP_IMAGE="$PREV_IMAGE"
-    docker compose up -d --force-recreate --no-deps --remove-orphans app
+    $COMPOSE up -d --force-recreate --no-deps --remove-orphans app
 
     # Verify rollback succeeded
     sleep 10
