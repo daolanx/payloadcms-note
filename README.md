@@ -99,29 +99,24 @@ pnpm dev  # http://localhost:3000
 | `pnpm dev` | Start dev server with Turbopack |
 | `pnpm build` | Production build |
 | `pnpm lint` | ESLint |
-| `pnpm docker:dev` | Local production test (nginx + HTTPS) |
-| `pnpm ecs:init` | First-time ECS setup |
+| `pnpm docker:dev` | Local production test (app only, HTTP) |
 | `pnpm payload:gen-importmap` | Regenerate Payload admin import map |
 
 ## 4. How to Deploy
 
 ### First-time ECS Setup
 
-```bash
-./scripts/setup-ecs.sh    # or: pnpm ecs:init
-```
+First push triggers the workflow, which automatically:
+- Installs Docker + Docker Compose on ECS (via `init-ecs.sh`, idempotent)
+- Deploys the app container
 
-This script will:
-- Create `/opt/notes` directory
-- Install Docker (or Podman)
-- Install Docker Compose plugin
-- Upload `docker/production/`, `.env.local`
+No manual setup needed — just push a tag.
 
 ### SSL Certificate
 
 > **Note**: `certs/` is gitignored — nginx will crash without valid certs on the ECS server.
 
-After `ecs:init`, SSH into ECS and generate self-signed certs (or upload your own):
+After first deploy, SSH into ECS and generate self-signed certs (or upload your own):
 
 ```bash
 # On ECS

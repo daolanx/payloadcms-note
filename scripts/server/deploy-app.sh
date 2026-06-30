@@ -48,9 +48,8 @@ docker image inspect "$APP_IMAGE" > /dev/null 2>&1 || {
   exit 1
 }
 
-# ─── 5. Replace containers ──────────────────────────────────────────
-docker compose down --timeout 30 2>/dev/null || true
-docker compose up -d --remove-orphans
+# ─── 5. Replace app container (nginx stays online) ──────────────────
+docker compose up -d --force-recreate --no-deps --remove-orphans app
 
 # ─── 6. Health check ────────────────────────────────────────────────
 HAS_HEALTH=$(docker inspect --format='{{if .State.Health}}true{{else}}false{{end}}' "$APP_CONTAINER" 2>/dev/null || echo "false")
@@ -95,8 +94,7 @@ if [ "$FINAL_HEALTH" != "healthy" ]; then
   echo "::error::Deployment failed — rolling back"
   if [ "$PREV_IMAGE" != "none" ]; then
     export APP_IMAGE="$PREV_IMAGE"
-    docker compose down --timeout 30 2>/dev/null || true
-    docker compose up -d --remove-orphans
+    docker compose up -d --force-recreate --no-deps --remove-orphans app
 
     # Verify rollback succeeded
     sleep 10
