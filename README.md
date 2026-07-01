@@ -1,202 +1,182 @@
 # My Notes
 
-A self-hosted CMS-powered notes application deployed on Alibaba Cloud ECS, featuring ISR static acceleration, Lexical rich text editing, and OSS image pipeline.
+A self-hosted CMS-powered notes application deployed on Alibaba Cloud ECS via BaoTa Panel, featuring ISR static acceleration, Lexical rich text editing, and OSS image pipeline.
 
-## 1. Why This Design
-
-Next.js + Payload CMS is a highly integrated CMS solution that works great on Vercel and similar platforms. However, in certain regions, network restrictions make Vercel inaccessible or painfully slow. To solve this, the app needs to be self-hosted on ECS — here we use Alibaba Cloud ECS to provide low-latency access for users in that region.
-- Payload CMS 3 runs inside Next.js (zero extra servers)
-- ISR for performance (static pages + on-demand revalidation)
-- OSS for image storage (CDN acceleration, on-the-fly resize)
-
-## 2. Technical Architecture
-
-### Deployment Architecture
-
-```
-Browser → nginx (:80/:443) → Next.js (:3000) → PostgreSQL (RDS) + OSS
-```
-
-nginx handles SSL termination, reverse proxy, static caching, and security hardening.
-
-### Key Design Decisions
-
-#### ISR + On-demand Revalidation
-
-Traditional CMS pain point: content updates force users to either see stale caches or hit the database on every request.
-
-This project solves it with Next.js ISR:
-
-```
-Build time:    generateStaticParams() → pre-render all /posts/[slug] as static HTML
-Edit time:     Payload afterChange hook → POST /api/revalidate → revalidatePath()
-Runtime:       pages served from cache, auto-regenerate every 60s
-```
-
-**Result**: Homepage loads in < 200ms, content updates reflect within 1 second — no cache clearing, no server restart.
-
-#### OSS Image Pipeline
-
-Payload CMS manages media metadata; actual files live on Alibaba Cloud OSS with on-the-fly resize via custom Next.js Image Loader:
-
-```
-Payload URL:  /api/media/file/photo.webp
-      ↓
-OSS URL:      https://bucket.oss-cn-beijing.aliyuncs.com/photo.webp
-              ?x-oss-process=image/resize,w_640
-```
-
-Images bypass the application server entirely. OSS handles CDN acceleration, format conversion, and bandwidth.
-
-#### Payload CMS 3 Integration
-
-Unlike traditional headless CMS (Strapi, Contentful), Payload CMS 3 runs inside the Next.js process:
-
-- **Zero extra servers** — CMS API and app share one process
-- **Lexical rich text editor** — Markdown shortcuts, drag-and-drop image upload
-- **Auto type generation** — TypeScript types sync with database schema
-- **Plugin architecture** — storage, auth, SEO all pluggable
-
-Access `/admin` after deployment for the admin panel with multi-user support and role-based permissions.
-
-### Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 16 + Turbopack |
 | CMS | Payload CMS 3 |
-| Database | PostgreSQL (Alibaba Cloud RDS) |
+| Database | SQLite |
 | Storage | Alibaba Cloud OSS (S3-compatible) |
 | Styling | Tailwind CSS 4 + shadcn/ui |
 | Language | TypeScript |
 
-## 3. How to Develop
+## Architecture
+
+```
+Browser → nginx → Docker → SQLite + OSS
+```
+
+### ISR + On-demand Revalidation
+
+```
+Build time:    generateStaticParams() → pre-render /posts/[slug] as static HTML
+Edit time:     Payload afterChange hook → POST /api/revalidate → revalidatePath()
+Runtime:       pages served from cache, auto-regenerate every 60s
+```
+
+### OSS Image Pipeline
+
+Images are stored on Alibaba Cloud OSS with on-the-fly resize. The app server is completely bypassed for image delivery.
+
+## Development
 
 ### Prerequisites
 
 - Node.js 22+
 - pnpm
-- PostgreSQL (local or RDS)
-- Alibaba Cloud OSS bucket
 
 ### Quick Start
 
 ```bash
-# Clone and setup
 git clone <repo-url>
 cd payload-notes
 cp .env.example .env.local
-vim .env.local  # Fill in DATABASE_URI, OSS credentials, etc.
-
-# Start dev server
+# Edit .env.local with your OSS credentials
 pnpm dev  # http://localhost:3000
 ```
 
-### Available Scripts
+### Scripts
 
 | Script | Purpose |
 |--------|---------|
 | `pnpm dev` | Start dev server with Turbopack |
 | `pnpm build` | Production build |
 | `pnpm lint` | ESLint |
-| `pnpm docker:dev` | Local production test (nginx + HTTPS) |
-| `pnpm ecs:init` | First-time ECS setup |
 | `pnpm payload:gen-importmap` | Regenerate Payload admin import map |
+| `pnpm docker:build` | Build Docker image (tag: commitHash-timestamp) |
+| `pnpm docker:push` | Push latest local image to ACR |
 
-## 4. How to Deploy
+## Deployment
 
-### First-time ECS Setup
+### 1. ECS Initialization
 
-```bash
-./scripts/setup-ecs.sh    # or: pnpm ecs:init
-```
+One-time setup to prepare the server environment.
 
-This script will:
-- Create `/opt/notes` directory
-- Install Docker (or Podman)
-- Install Docker Compose plugin
-- Upload `docker/production/`, `.env.local`
+**Install BaoTa Panel**
 
-### SSL Certificate
+ECS console → Instance details → Extensions → Search "BaoTa" → Install
 
-> **Note**: `certs/` is gitignored — nginx will crash without valid certs on the ECS server.
+**Install via BaoTa**
 
-After `ecs:init`, SSH into ECS and generate self-signed certs (or upload your own):
+- Docker Manager
+- Nginx
 
-```bash
-# On ECS
-cd /opt/notes/docker/production
-mkdir -p certs
-openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-  -keyout certs/key.pem -out certs/cert.pem \
-  -subj "/CN=your-server-ip"
-docker restart notes-nginx
-```
+**Configure ACR**
 
-For production, replace with real certs (e.g. via Let's Encrypt):
+1. BaoTa → Docker → Image Registry → Add Registry
+2. Fill in ACR registry address, username, and password
+
+**Prepare environment variables**
 
 ```bash
-certbot certonly --standalone -d your-domain.com
-# Then copy certs to /opt/notes/docker/production/certs/ and restart nginx
+scp .env.local root@<ECS_IP>:/opt/notes/.env.local
 ```
 
-### Deployment (GitHub Actions)
+Reference `.env.example` for all required variables.
 
-Push tag (e.g. `v1.0.0`) triggers automatic deployment:
+### 2. Deployment
 
-```
-Preflight check (validate secrets/variables)
-  → Build Docker image (linux/amd64)
-    → Push to Alibaba Cloud ACR
-      → Upload config to ECS
-        → SSH to ECS → pull & restart
-          → Health check (auto-rollback on failure)
-```
+#### Build Image
 
-BuildKit GHA cache enabled for faster subsequent builds. Concurrent deployments are deduplicated automatically.
-
-## 5. Daily Operations
-
-### Common Operations
+**Option A: Local build**
 
 ```bash
-# Check container status
-ssh root@<ECS_HOST>
-cd /opt/notes
-docker compose ps
+pnpm docker:build                    # tag: commitHash-timestamp
+pnpm docker:push                     # push to ACR
 
-# View logs
-docker compose logs app
+# Or specify a version tag
+TAG=v1.1.0 pnpm docker:build
+TAG=v1.1.0 pnpm docker:push
+```
 
-# Restart services
-docker compose restart
+First time, login to ACR locally:
 
-# Pull new image and restart
-docker compose pull
-docker compose up -d
+```bash
+docker login <ACR_REGISTRY> -u <username>
+```
+
+**Option B: CI build (GitHub Actions)**
+
+Push a git tag to trigger automatic build and push:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+CI reuses the same `docker/build.sh` and `docker/push.sh` scripts.
+
+#### Deploy to ECS
+
+**First deploy:**
+
+1. Create data directory: `mkdir -p /opt/notes/db`
+2. BaoTa → Docker → Image Management → Pull your image
+3. Create container:
+   - Port: `127.0.0.1:3000:3000`
+   - Volume: `/opt/notes/db:/app/db`
+   - Env vars: from `.env.local`
+   - Restart: Always
+4. BaoTa → Websites → Add Site → Reverse Proxy:
+   - Name: `notes-app`
+   - Target: `http://127.0.0.1:3000`
+5. BaoTa → Websites → Site Settings → Config → Add to `location /` block:
+   ```nginx
+   proxy_set_header Origin "https://$host";
+   ```
+6. BaoTa → Websites → SSL → Issue Let's Encrypt certificate
+
+**Update deploy:**
+
+1. BaoTa → Docker → Image Management → Pull latest image
+2. BaoTa → Docker → Containers → Recreate with same config
+
+## Operations
+
+### Database Backup
+
+SQLite database is stored at `/opt/notes/db/database.db` on ECS:
+
+```bash
+# Manual backup
+cp /opt/notes/db/database.db /opt/notes/db/backup-$(date +%Y%m%d).db
+
+# Keep last 7 days
+find /opt/notes/db -name "backup-*.db" -mtime +7 -delete
 ```
 
 ### Health Check
-
-The app exposes a health check endpoint:
 
 ```bash
 curl http://localhost:3000/api/health
 # Returns: { "status": "ok" }
 ```
 
-## 6. Pitfalls I Hit
+### Troubleshooting
 
-Real-world issues encountered during development and deployment, with solutions.
+```bash
+docker logs notes-app
+docker ps -a
+docker exec -it notes-app sh
+docker restart notes-app
+```
 
-- Payload CMS Login Fails Silently
-- Podman vs Docker Credential Separation
-- Mac Build → ECS Deploy Architecture Mismatch
-- Next.js 16 Breaking Changes
-- Payload CMS CLI ESM Error
-- Docker Hub Mirror Acceleration (Domestic)
+## Pitfalls
 
-See [docs/pitfalls.md](docs/pitfalls.md) for detailed descriptions and fixes.
+See [docs/pitfalls.md](docs/pitfalls.md) for real-world issues encountered during development and deployment.
 
 ## License
 

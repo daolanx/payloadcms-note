@@ -3,18 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.9",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "payload:gen-importmap": "node scripts/generate-importmap.mjs",
-    "docker:dev": "bash scripts/generate-certs.sh && docker compose -f docker/production/compose.yaml down 2>/dev/null; docker compose -f docker/production/compose.yaml watch",
-    "ecs:init": "bash scripts/setup-ecs.sh"
+    "payload:gen-importmap": "payload generate:importmap",
+    "docker:build": "bash docker/build.sh",
+    "docker:push": "bash docker/push.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
-    "@payloadcms/db-postgres": "^3.85.1",
+    "@payloadcms/db-sqlite": "^3.85.1",
     "@payloadcms/next": "^3.85.1",
     "@payloadcms/richtext-lexical": "^3.85.1",
     "@payloadcms/storage-s3": "^3.85.1",
@@ -36,7 +37,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
-    "sass": "^1.89.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
     "typescript": "^5"

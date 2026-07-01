@@ -1,27 +1,45 @@
-import { postgresAdapter } from '@payloadcms/db-postgres'
-import { lexicalEditor, FixedToolbarFeature } from '@payloadcms/richtext-lexical'
+import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { lexicalEditor, FixedToolbarFeature, UploadFeature } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 
-// Single site URL constant to keep serverURL / cors / csrf in sync
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
+const triggerRevalidate = async () => {
+  const url = `${SITE_URL}/api/revalidate`
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-revalidate-secret': process.env.REVALIDATION_SECRET || '',
+      },
+      body: JSON.stringify({ collection: 'posts' }),
+    })
+  } catch (error) {
+    console.error('Revalidation failed:', error)
+  }
+}
 
 export default buildConfig({
   serverURL: SITE_URL,
   cors: [SITE_URL],
-  csrf: [],
   admin: {
     user: 'users',
   },
-  db: postgresAdapter({
-    pool: {
-      connectionString: process.env.DATABASE_URI || 'postgres://localhost:5432/payload',
+  db: sqliteAdapter({
+    client: {
+      url: process.env.DATABASE_URI || 'file:./db/database.db',
     },
+    push: process.env.NODE_ENV !== 'production',
   }),
   editor: lexicalEditor({
     features: ({ defaultFeatures }) => [
       ...defaultFeatures,
       FixedToolbarFeature(),
+      UploadFeature({
+        enabledCollections: ['media'],
+      }),
     ],
   }),
   plugins: [
@@ -38,20 +56,13 @@ export default buildConfig({
           accessKeyId: process.env.OSS_ACCESS_KEY_ID || '',
           secretAccessKey: process.env.OSS_ACCESS_KEY_SECRET || '',
         },
-        // Alibaba Cloud OSS virtual-hosted style access
       },
     }),
   ],
   collections: [
     {
       slug: 'users',
-      auth: {
-        useSessions: false,
-        cookies: {
-          secure: false,
-          sameSite: 'Lax',
-        },
-      },
+      auth: true,
       admin: {
         useAsTitle: 'name',
       },
@@ -85,32 +96,8 @@ export default buildConfig({
         defaultColumns: ['title', 'slug', 'status', 'publishedAt'],
       },
       hooks: {
-        afterChange: [
-          async () => {
-            const url = `${SITE_URL}/api/revalidate`
-            await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-revalidate-secret': process.env.REVALIDATION_SECRET || '',
-              },
-              body: JSON.stringify({ collection: 'posts' }),
-            }).catch(console.error)
-          },
-        ],
-        afterDelete: [
-          async () => {
-            const url = `${SITE_URL}/api/revalidate`
-            await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-revalidate-secret': process.env.REVALIDATION_SECRET || '',
-              },
-              body: JSON.stringify({ collection: 'posts' }),
-            }).catch(console.error)
-          },
-        ],
+        afterChange: [triggerRevalidate],
+        afterDelete: [triggerRevalidate],
       },
       fields: [
         { name: 'title', type: 'text', required: true },
@@ -121,7 +108,7 @@ export default buildConfig({
           relationTo: 'media',
         },
         { name: 'excerpt', type: 'text' },
-        { name: 'content', type: 'richText', editor: lexicalEditor() },
+        { name: 'content', type: 'richText' },
         {
           name: 'status',
           type: 'select',

@@ -1,0 +1,35 @@
+# CI/CD pipeline: push tag → build image → push to ACR
+# Deployment is manual via BaoTa Panel
+name: Build & Push Image
+
+on:
+  push:
+    tags: ['v*']
+
+env:
+  ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
+  ACR_NAMESPACE: ${{ vars.ACR_NAMESPACE }}
+  ACR_USERNAME: ${{ vars.ACR_USERNAME }}
+  IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract tag name
+        id: tag
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ACR
+        run: echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ env.ACR_REGISTRY }} -u ${{ env.ACR_USERNAME }} --password-stdin
+
+      - name: Build image
+        run: TAG=${{ steps.tag.outputs.TAG }} bash docker/build.sh
+
+      - name: Push image
+        run: TAG=${{ steps.tag.outputs.TAG }} bash docker/push.sh  # pushes the image built in previous step

@@ -6,6 +6,8 @@ services:
     env_file: .env.local
     ports:
       - "127.0.0.1:3000:3000"
+    volumes:
+      - /opt/notes/db:/app/db
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
       interval: 10s
