@@ -30,9 +30,6 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NODE_ENV=production
 ENV IS_DOCKER_BUILD=true
 
-# Uncomment the following line in case you want to disable telemetry during the build.
-# ENV NEXT_TELEMETRY_DISABLED=1
-
 RUN --mount=type=cache,target=/app/.next/cache \
     corepack enable pnpm && pnpm build
 
@@ -47,9 +44,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-
-# Uncomment the following line in case you want to disable telemetry during the run time.
-# ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=builder --chown=node:node /app/public ./public
 

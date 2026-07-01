@@ -176,7 +176,8 @@ docker restart notes-app
 
 ## Pitfalls
 
-See [docs/pitfalls.md](docs/pitfalls.md) for real-world issues encountered during development and deployment.
+- [SQLite Production Migration](docs/sqlite-production-migration.md) — `push: true` doesn't work in production, use `prodMigrations` instead
+- [General Pitfalls](docs/pitfalls.md) — other real-world issues encountered during development and deployment
 
 ## License
 

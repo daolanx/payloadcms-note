@@ -1,4 +1,5 @@
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { migrations } from './migrations'
 import { lexicalEditor, FixedToolbarFeature, UploadFeature } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
@@ -31,7 +32,10 @@ export default buildConfig({
     client: {
       url: process.env.DATABASE_URI || 'file:./db/database.db',
     },
-    push: true,
+    push: process.env.NODE_ENV !== 'production',
+    // Auto-run migrations in production (push is dev-only)
+    // See: docs/sqlite-production-migration.md
+    prodMigrations: migrations,
   }),
   editor: lexicalEditor({
     features: ({ defaultFeatures }) => [

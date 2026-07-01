@@ -74,6 +74,7 @@ The `PostImage` component (`src/components/post-image.tsx`) wraps `next/image` w
 
 ### Key Gotchas
 
+- **SQLite in production**: `push: true` only works in development. Use `prodMigrations: migrations` for production. See [docs/sqlite-production-migration.md](docs/sqlite-production-migration.md).
 - **pnpm strict mode**: `@payloadcms/ui` must be listed as a direct dependency, otherwise it's not resolvable from project code.
 - **Payload CLI ESM bug**: `payload generate:types` crashes with `ERR_REQUIRE_ASYNC_MODULE` on Node 20/22. Use `pnpm payload:gen-importmap` for importMap generation.
 - **Schema changes**: Adding required columns to existing tables triggers a confirmation prompt. Use `PAYLOAD_DROP_DATABASE=true` env var to reset during development.
