@@ -31,7 +31,7 @@ export default buildConfig({
     client: {
       url: process.env.DATABASE_URI || 'file:./db/database.db',
     },
-    push: process.env.NODE_ENV !== 'production',
+    push: true,
   }),
   editor: lexicalEditor({
     features: ({ defaultFeatures }) => [
