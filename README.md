@@ -121,28 +121,43 @@ CI reuses the same `docker/build.sh` and `docker/push.sh` scripts.
 
 #### Deploy to ECS
 
-**First deploy:**
+**First deploy (one-time SSH):**
 
-1. Create data directory: `mkdir -p /opt/notes/db`
-2. BaoTa → Docker → Image Management → Pull your image
-3. Create container:
-   - Port: `127.0.0.1:3000:3000`
-   - Volume: `/opt/notes/db:/app/db`
-   - Env vars: from `.env.local`
-   - Restart: Always
-4. BaoTa → Websites → Add Site → Reverse Proxy:
+1. Login to ACR on ECS:
+   ```bash
+   echo '<ACR_PASSWORD>' | docker login <ACR_REGISTRY> -u <ACR_USERNAME> --password-stdin
+   ```
+2. Upload env file:
+   ```bash
+   scp .env.local root@<ECS_IP>:/opt/notes/.env.local
+   ```
+3. Create data directory: `mkdir -p /opt/notes/db`
+4. BaoTa → Docker → Image Management → Pull your image
+5. Create container:
+   ```bash
+   bash scripts/create-container.sh <image_tag>
+   ```
+   Or manually via BaoTa panel with port `127.0.0.1:3000:3000`, volume `/opt/notes/db:/app/db`, restart always.
+6. BaoTa → Websites → Add Site → Reverse Proxy:
    - Name: `notes-app`
    - Target: `http://127.0.0.1:3000`
-5. BaoTa → Websites → Site Settings → Config → Add to `location /` block:
+7. BaoTa → Websites → Site Settings → Config → Add to `location /` block:
    ```nginx
    proxy_set_header Origin "https://$host";
    ```
-6. BaoTa → Websites → SSL → Issue Let's Encrypt certificate
+8. BaoTa → Websites → SSL → Issue Let's Encrypt certificate
 
-**Update deploy:**
+**Update deploy (no SSH needed):**
 
-1. BaoTa → Docker → Image Management → Pull latest image
-2. BaoTa → Docker → Containers → Recreate with same config
+1. Push new tag (triggers CI build)
+2. BaoTa → Docker → Image Management → Pull latest image
+3. BaoTa → Docker → Containers → Recreate with same config
+
+**SSH tasks (occasional):**
+
+- Update `.env.local` on ECS
+- Manual database backup
+- Check container logs for debugging
 
 ## Operations
 
