@@ -121,24 +121,17 @@ CI reuses the same `docker/build.sh` and `docker/push.sh` scripts.
 
 #### Deploy to ECS
 
-**First deploy (one-time SSH):**
+**First deploy (one command):**
 
-1. Login to ACR on ECS:
-   ```bash
-   echo '<ACR_PASSWORD>' | docker login <ACR_REGISTRY> -u <ACR_USERNAME> --password-stdin
-   ```
-2. Upload env file:
-   ```bash
-   scp .env.local root@<ECS_IP>:/opt/notes/.env.local
-   ```
-3. Create data directory: `mkdir -p /opt/notes/db`
-4. BaoTa → Docker → Image Management → Pull your image
-5. Create container:
-   ```bash
-   bash scripts/create-container.sh <image_tag>
-   ```
-   Or manually via BaoTa panel with port `127.0.0.1:3000:3000`, volume `/opt/notes/db:/app/db`, restart always.
-6. BaoTa → Websites → Add Site → Reverse Proxy:
+```bash
+bash scripts/deploy-ecs.sh <ECS_IP> <image_tag>
+```
+
+This handles ACR login, env upload, directory creation, and container setup on ECS.
+
+**Then configure BaoTa:**
+
+1. BaoTa → Websites → Add Site → Reverse Proxy:
    - Name: `notes-app`
    - Target: `http://127.0.0.1:3000`
 7. BaoTa → Websites → Site Settings → Config → Add to `location /` block:
