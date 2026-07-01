@@ -61,35 +61,19 @@ pnpm dev  # http://localhost:3000
 
 ## Deployment
 
-### 1. ECS Initialization
+### 1. Check Database Changes
 
-One-time setup to prepare the server environment.
-
-**Install BaoTa Panel**
-
-ECS console → Instance details → Extensions → Search "BaoTa" → Install
-
-**Install via BaoTa**
-
-- Docker Manager
-- Nginx
-
-**Configure ACR**
-
-1. BaoTa → Docker → Image Registry → Add Registry
-2. Fill in ACR registry address, username, and password
-
-**Prepare environment variables**
+If you modified collections or fields in `payload.config.ts`:
 
 ```bash
-scp .env.local root@<ECS_IP>:/opt/notes/.env.local
+pnpm payload:migrate:create
+git add src/migrations/
+git commit -m 'chore: add migration for ...'
 ```
 
-Reference `.env.example` for all required variables.
+If no schema changes, skip this step.
 
-### 2. Deployment
-
-#### Build Image
+### 2. Build & Push Image
 
 **Option A: Local build**
 
@@ -98,8 +82,8 @@ pnpm docker:build                    # tag: commitHash-timestamp
 pnpm docker:push                     # push to ACR
 
 # Or specify a version tag
-TAG=v1.1.0 pnpm docker:build
-TAG=v1.1.0 pnpm docker:push
+TAG=v1.2.5 pnpm docker:build
+TAG=v1.2.5 pnpm docker:push
 ```
 
 First time, login to ACR locally:
@@ -110,61 +94,58 @@ docker login <ACR_REGISTRY> -u <username>
 
 **Option B: CI build (GitHub Actions)**
 
-Push a git tag to trigger automatic build and push:
-
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.2.5
+git push origin v1.2.5
 ```
 
-CI reuses the same `docker/build.sh` and `docker/push.sh` scripts.
+CI auto-builds and pushes to ACR. Reuses `docker/build.sh` and `docker/push.sh`.
 
-#### Deploy to ECS
+### 3. Deploy to ECS
 
-**First deploy (one command):**
+Requires SSH access to ECS from your local machine.
 
 ```bash
 bash scripts/deploy-ecs.sh <ECS_IP> <image_tag>
 ```
 
-This handles ACR login, env upload, directory creation, and container setup on ECS.
+Handles: ACR login → upload `.env.local` → create directory → pull image → create container.
 
-**Then configure BaoTa:**
+### 4. BaoTa nginx & SSL (One-time)
 
-1. BaoTa → Websites → Add Site → Reverse Proxy:
-   - Name: `notes-app`
-   - Target: `http://127.0.0.1:3000`
-7. BaoTa → Websites → Site Settings → Config → Add to `location /` block:
+**Install via BaoTa**
+
+- Docker Manager
+- Nginx
+
+**Configure ACR**
+
+BaoTa → Docker → Image Registry → Add Registry
+
+**Configure reverse proxy**
+
+1. BaoTa → Websites → Add Site → Reverse Proxy → `http://127.0.0.1:3000`
+2. BaoTa → Websites → Site Settings → Config → Add to `location /` block:
    ```nginx
    proxy_set_header Origin "https://$host";
    ```
-8. BaoTa → Websites → SSL → Issue Let's Encrypt certificate
-
-**Update deploy (no SSH needed):**
-
-1. Push new tag (triggers CI build)
-2. BaoTa → Docker → Image Management → Pull latest image
-3. BaoTa → Docker → Containers → Recreate with same config
-
-**SSH tasks (occasional):**
-
-- Update `.env.local` on ECS
-- Manual database backup
-- Check container logs for debugging
+3. BaoTa → Websites → SSL → Issue Let's Encrypt certificate
 
 ## Operations
 
 ### Database Backup
 
-SQLite database is stored at `/opt/notes/db/database.db` on ECS:
+BaoTa → Scheduled Tasks → Backup Directory → select `/opt/notes/db/`.
+
+Images are stored on OSS, no backup needed.
+
+### Update Deploy
 
 ```bash
-# Manual backup
-cp /opt/notes/db/database.db /opt/notes/db/backup-$(date +%Y%m%d).db
-
-# Keep last 7 days
-find /opt/notes/db -name "backup-*.db" -mtime +7 -delete
+bash scripts/deploy-ecs.sh <ECS_IP> <new_image_tag>
 ```
+
+Or push a new git tag for CI auto-build, then run the deploy script.
 
 ### Health Check
 
@@ -176,10 +157,10 @@ curl http://localhost:3000/api/health
 ### Troubleshooting
 
 ```bash
-docker logs notes-app
+docker logs my-notes
 docker ps -a
-docker exec -it notes-app sh
-docker restart notes-app
+docker exec -it my-notes sh
+docker restart my-notes
 ```
 
 ## Pitfalls

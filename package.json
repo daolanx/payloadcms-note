@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "payload:gen-importmap": "payload generate:importmap",
+    "payload:migrate:create": "payload migrate:create",
     "docker:build": "bash docker/build.sh",
     "docker:push": "bash docker/push.sh"
   },
