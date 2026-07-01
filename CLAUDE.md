@@ -25,7 +25,7 @@ Package manager: `pnpm@9.15.9`. No test framework is configured.
 ### Route Groups (critical layout structure)
 
 - **`(frontend)/`** — Public pages. Its `layout.tsx` owns `<html>` and `<body>` tags with Geist fonts and global CSS.
-- **`(payload)/admin/`** — Payload CMS admin panel. Its auto-generated `layout.tsx` uses `RootLayout` from `@payloadcms/next/layouts` which renders its own `<html>`/`<body>`.
+- **`(payload)/trail/`** — Payload CMS admin panel (accessible at `/trail`). Its auto-generated `layout.tsx` uses `RootLayout` from `@payloadcms/next/layouts` which renders its own `<html>`/`<body>`.
 - **Root `layout.tsx`** — Returns `<>{children}</>` only (no `<html>`/`<body>`). This is intentional to avoid nested HTML conflicts between the two route groups.
 
 ### ISR + Revalidation Flow
@@ -58,8 +58,8 @@ The `PostImage` component (`src/components/post-image.tsx`) wraps `next/image` w
   - `posts` — title, slug (unique), coverImage (upload), excerpt, content (richText), status (draft/published), publishedAt (sidebar). Has `afterChange`/`afterDelete` hooks that POST to `/api/revalidate`.
   - `media` — image/* only, public read, fields: alt
 - **API route**: `src/app/api/[...slug]/route.ts` — Auto-generated, do not edit.
-- **Admin layout**: `src/app/(payload)/admin/[[...segments]]/layout.tsx` — Auto-generated, imports `@payloadcms/next/css` for admin styles.
-- **importMap**: `src/app/(payload)/admin/importMap.js` — Maps Payload component paths to imports. Regenerate with `pnpm payload:gen-importmap`.
+- **Admin layout**: `src/app/(payload)/trail/[[...segments]]/layout.tsx` — Auto-generated, imports `@payloadcms/next/css` for admin styles.
+- **importMap**: `src/app/(payload)/trail/importMap.js` — Maps Payload component paths to imports. Regenerate with `pnpm payload:gen-importmap`.
 
 ### Data Fetching
 

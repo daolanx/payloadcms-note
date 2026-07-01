@@ -5,7 +5,6 @@ import config from '@payload-config'
 export interface Post {
   id: number
   title: string
-  slug: string
   excerpt?: string | null
   coverImage?: {
     url: string
@@ -14,6 +13,7 @@ export interface Post {
   content?: any
   status: 'draft' | 'published'
   publishedAt?: string | null
+  createdAt?: string | null
 }
 
 export const getPosts = unstable_cache(
@@ -37,17 +37,18 @@ export const getPosts = unstable_cache(
 )
 
 export const getPost = unstable_cache(
-  async (slug: string): Promise<Post | null> => {
+  async (id: number): Promise<Post | null> => {
     try {
       const payload = await getPayload({ config })
       const result = await payload.find({
         collection: 'posts',
         where: {
           and: [
-            { slug: { equals: slug } },
+            { id: { equals: id } },
             { status: { equals: 'published' } },
           ],
         },
+        depth: 2,
         limit: 1,
       })
       return (result.docs[0] as Post) || null
@@ -60,9 +61,7 @@ export const getPost = unstable_cache(
   { tags: ['posts'] },
 )
 
-export async function getAllPostSlugs(): Promise<string[]> {
-  // Skip database query during Docker build (no DB available)
-  // Pages will be rendered on-demand via ISR on first request
+export async function getAllPostIds(): Promise<number[]> {
   if (process.env.IS_DOCKER_BUILD === 'true') {
     return []
   }
@@ -72,12 +71,12 @@ export async function getAllPostSlugs(): Promise<string[]> {
     const result = await payload.find({
       collection: 'posts',
       where: { status: { equals: 'published' } },
-      select: { slug: true },
+      select: { id: true },
       limit: 100,
     })
-    return result.docs.map((doc) => doc.slug as string)
+    return result.docs.map((doc) => doc.id as number)
   } catch (error) {
-    console.error('Failed to fetch post slugs:', error)
+    console.error('Failed to fetch post ids:', error)
     return []
   }
 }

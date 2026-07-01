@@ -25,6 +25,9 @@ const triggerRevalidate = async () => {
 export default buildConfig({
   serverURL: SITE_URL,
   cors: [SITE_URL],
+  routes: {
+    admin: '/trail',
+  },
   admin: {
     user: 'users',
   },
@@ -97,7 +100,7 @@ export default buildConfig({
       slug: 'posts',
       admin: {
         useAsTitle: 'title',
-        defaultColumns: ['title', 'slug', 'status', 'publishedAt'],
+        defaultColumns: ['title', 'status', 'publishedAt'],
       },
       hooks: {
         afterChange: [triggerRevalidate],
@@ -105,7 +108,6 @@ export default buildConfig({
       },
       fields: [
         { name: 'title', type: 'text', required: true },
-        { name: 'slug', type: 'text', required: true, unique: true },
         {
           name: 'coverImage',
           type: 'upload',

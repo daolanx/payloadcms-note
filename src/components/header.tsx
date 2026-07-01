@@ -1,18 +1,11 @@
 import Link from 'next/link'
-import { buttonVariants } from '@/components/ui/button'
 
 export function Header() {
   return (
-    <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4 max-w-4xl h-14 flex items-center justify-between">
-        <Link href="/" className="text-lg font-bold tracking-tight text-foreground hover:opacity-80 transition-opacity">
-          My Notes
-        </Link>
-        <Link
-          href="/admin"
-          className={buttonVariants({ variant: 'outline', size: 'sm' })}
-        >
-          Dashboard
+    <header className="border-b border-border">
+      <div className="container mx-auto px-6 max-w-2xl h-16 flex items-center">
+        <Link href="/" className="text-lg font-bold text-foreground hover:text-muted-foreground transition-colors">
+          道蓝的生活随笔
         </Link>
       </div>
     </header>
