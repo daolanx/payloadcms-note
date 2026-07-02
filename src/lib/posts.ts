@@ -71,7 +71,6 @@ export async function getAllPostIds(): Promise<number[]> {
     const result = await payload.find({
       collection: 'posts',
       where: { status: { equals: 'published' } },
-      select: { id: true },
       limit: 100,
     })
     return result.docs.map((doc) => doc.id as number)

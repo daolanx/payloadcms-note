@@ -1,4 +1,4 @@
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -12,10 +12,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const slug = body?.slug
 
-    // Always revalidate homepage
-    revalidatePath('/')
+    // Invalidate unstable_cache data (tagged in posts.ts)
+    revalidateTag('posts', '')
 
-    // Precise revalidation: only revalidate the specific post page
+    // Invalidate page caches
+    revalidatePath('/')
     if (slug) {
       revalidatePath(`/posts/${slug}`)
     }
