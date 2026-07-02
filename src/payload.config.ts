@@ -2,28 +2,12 @@ import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { migrations } from './migrations'
 import { lexicalEditor, FixedToolbarFeature, UploadFeature } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
+import { revalidatePath } from 'next/cache'
 import { buildConfig } from 'payload'
 
 const SITE_URL = process.env.SITE_URL || 'http://localhost:3000'
 
-// Read at runtime — build-time SITE_URL defaults to localhost
 const getSiteUrl = () => process.env.SITE_URL || SITE_URL
-
-const triggerRevalidate = async ({ doc }: { doc: any }) => {
-  const url = `${getSiteUrl()}/api/revalidate`
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-revalidate-secret': process.env.REVALIDATION_SECRET || '',
-      },
-      body: JSON.stringify({ collection: 'posts', id: doc?.id }),
-    })
-  } catch (error) {
-    console.error('Revalidation failed:', error)
-  }
-}
 
 export default buildConfig({
   serverURL: getSiteUrl(),
@@ -107,8 +91,8 @@ export default buildConfig({
         defaultColumns: ['title', 'status', 'publishedAt'],
       },
       hooks: {
-        afterChange: [triggerRevalidate],
-        afterDelete: [triggerRevalidate],
+        afterChange: [async () => { revalidatePath('/'); revalidatePath('/posts/[slug]', 'page') }],
+        afterDelete: [async () => { revalidatePath('/') }],
       },
       fields: [
         { name: 'title', type: 'text', required: true },
