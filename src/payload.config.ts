@@ -84,7 +84,7 @@ export default buildConfig({
         defaultColumns: ['title', 'status', 'publishedAt'],
       },
       hooks: {
-        afterChange: [async () => { revalidatePath('/'); revalidatePath('/posts/[slug]', 'page') }],
+        afterChange: [async ({ doc }) => { revalidatePath('/'); revalidatePath(`/posts/${doc.id}`, 'page') }],
         afterDelete: [async () => { revalidatePath('/') }],
       },
       fields: [
