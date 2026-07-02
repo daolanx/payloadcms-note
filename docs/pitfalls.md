@@ -74,6 +74,24 @@ docker compose up -d --remove-orphans
 PREV_IMAGE=$(docker inspect --format='{{.Config.Image}}' notes-app 2>/dev/null || echo "none")
 ```
 
+### SQLite Database Directory Permission Denied
+
+**Symptom**: Container starts but app crashes with `Error: cannot connect to SQLite: ConnectionFailed("Unable to open connection to local database ./db/database.db: 14")`.
+
+**Cause**: The Docker container runs as `node` user (uid 1000), but the host volume directory `/opt/notes/db` is owned by `root`. The `node` user cannot create or write to the database file.
+
+**Fix**: Change ownership of the db directory to match the container's user before starting:
+
+```bash
+chown 1000:1000 /opt/notes/db
+```
+
+The `deploy.sh` script handles this automatically. If you create the directory manually, always set permissions:
+
+```bash
+mkdir -p /opt/notes/db && chown 1000:1000 /opt/notes/db
+```
+
 ## CI/CD
 
 ### Mac Build → ECS Deploy Architecture Mismatch
