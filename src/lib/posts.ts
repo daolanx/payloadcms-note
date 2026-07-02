@@ -16,40 +16,30 @@ export interface Post {
 }
 
 export async function getPosts(): Promise<Post[]> {
-  try {
-    const payload = await getPayload({ config })
-    const result = await payload.find({
-      collection: 'posts',
-      where: { status: { equals: 'published' } },
-      sort: '-publishedAt',
-      limit: 20,
-    })
-    return result.docs as Post[]
-  } catch (error) {
-    console.error('Failed to fetch posts:', error)
-    return []
-  }
+  const payload = await getPayload({ config })
+  const result = await payload.find({
+    collection: 'posts',
+    where: { status: { equals: 'published' } },
+    sort: '-publishedAt',
+    limit: 20,
+  })
+  return result.docs as Post[]
 }
 
 export async function getPost(id: number): Promise<Post | null> {
-  try {
-    const payload = await getPayload({ config })
-    const result = await payload.find({
-      collection: 'posts',
-      where: {
-        and: [
-          { id: { equals: id } },
-          { status: { equals: 'published' } },
-        ],
-      },
-      depth: 2,
-      limit: 1,
-    })
-    return (result.docs[0] as Post) || null
-  } catch (error) {
-    console.error('Failed to fetch post:', error)
-    return null
-  }
+  const payload = await getPayload({ config })
+  const result = await payload.find({
+    collection: 'posts',
+    where: {
+      and: [
+        { id: { equals: id } },
+        { status: { equals: 'published' } },
+      ],
+    },
+    depth: 2,
+    limit: 1,
+  })
+  return (result.docs[0] as Post) || null
 }
 
 export async function getAllPostIds(): Promise<number[]> {
