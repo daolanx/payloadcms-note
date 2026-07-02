@@ -25,6 +25,7 @@ const triggerRevalidate = async () => {
 export default buildConfig({
   serverURL: SITE_URL,
   cors: [SITE_URL],
+  csrf: [SITE_URL, 'http://localhost:3000'],
   routes: {
     admin: '/trail',
   },
