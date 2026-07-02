@@ -4,7 +4,7 @@ import { lexicalEditor, FixedToolbarFeature, UploadFeature } from '@payloadcms/r
 import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+const SITE_URL = process.env.SITE_URL || 'http://localhost:3000'
 
 const triggerRevalidate = async ({ doc }: { doc: any }) => {
   const url = `${SITE_URL}/api/revalidate`

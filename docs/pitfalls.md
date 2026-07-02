@@ -12,6 +12,24 @@ Real-world issues encountered during development and deployment, with solutions.
 
 **Fix**: Nginx origin injection (`proxy_set_header Origin "http://$host"`) or deploy with HTTPS — browsers send `Sec-Fetch-Site: same-origin` correctly over HTTPS.
 
+### `NEXT_PUBLIC_` Variables Baked Into Build
+
+**Symptom**: After deploying to ECS, admin panel returns `403: You are not allowed to perform this action` when saving. CSRF config appears correct in source code but doesn't take effect.
+
+**Cause**: Next.js inlines `NEXT_PUBLIC_*` variables at **build time** into the compiled JavaScript bundle. During Docker build, `.env.local` is not in the build context, so `process.env.NEXT_PUBLIC_SITE_URL` is empty and falls back to `http://localhost:3000`. This wrong value gets baked into `.next/server/` and never changes at runtime — even if the container has the correct env var.
+
+**Fix**: For server-side config (like Payload's `serverURL`, `cors`, `csrf`), use a plain env var without the `NEXT_PUBLIC_` prefix. Plain env vars stay as `process.env.XXX` in the compiled code and are read at **runtime** from the container's environment.
+
+```typescript
+// ❌ Wrong — inlined at build time, value is baked into the bundle
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
+// ✅ Correct — read at runtime from container env
+const SITE_URL = process.env.SITE_URL || 'http://localhost:3000'
+```
+
+> **Rule of thumb**: `NEXT_PUBLIC_*` is for values that need to be available in client-side JavaScript (browser). Server-side config like Payload CMS settings should never use `NEXT_PUBLIC_` prefix.
+
 ### CLI ESM Error
 
 `payload generate:types` crashes with `ERR_REQUIRE_ASYNC_MODULE` on Node 20/22. Workaround: maintain type files manually or use custom scripts.
