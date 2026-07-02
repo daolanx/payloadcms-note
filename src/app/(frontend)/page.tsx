@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getPosts } from '@/lib/posts'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function Home() {
   const posts = await getPosts()
