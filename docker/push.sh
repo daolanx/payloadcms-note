@@ -1,22 +1,20 @@
 #!/bin/bash
 # Push the most recently built image to ACR
-# Usage: ./docker/push.sh [tag]
-#   No argument: pushes the latest local image
-#   With argument: pushes the specified tag
+# Usage: ./docker/push.sh [-t|--tag <tag>]
+#   Without -t/--tag: pushes the latest local image
+#   With -t/--tag: pushes the specified tag
 
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
-# Load .env.local if exists (for local dev)
-if [ -f .env.local ]; then
-  set -a
-  . .env.local
-  set +a
-fi
+load_env
+TAG=$(parse_tag "$@")
 
 REPO="$ACR_REGISTRY/$ACR_NAMESPACE/$IMAGE_NAME"
 
-if [ -n "${1:-}" ]; then
-  TAG="$1"
+if [ -n "${TAG:-}" ]; then
+  :
 else
   TAG=$(docker images --format '{{.Tag}}' "$REPO" | head -1)
 fi

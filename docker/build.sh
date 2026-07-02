@@ -1,18 +1,16 @@
 #!/bin/bash
 # Build Docker image for payload-notes
-# Usage: ./docker/build.sh [tag]
-#   TAG env var or argument overrides default "commitHash-timestamp"
+# Usage: ./docker/build.sh [-t|--tag <tag>]
+#   Without -t/--tag: default "commitHash-timestamp"
 
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
-# Load .env.local if exists (for local dev)
-if [ -f .env.local ]; then
-  set -a
-  . .env.local
-  set +a
-fi
+load_env
+TAG=$(parse_tag "$@")
 
-TAG="${1:-${TAG:-$(git rev-parse --short HEAD)-$(date +%Y%m%d%H%M%S)}}"
+TAG="${TAG:-$(git rev-parse --short HEAD)-$(date +%Y%m%d%H%M%S)}"
 IMAGE="$ACR_REGISTRY/$ACR_NAMESPACE/$IMAGE_NAME:$TAG"
 
 echo "▸ Building $IMAGE (linux/amd64) ..."
