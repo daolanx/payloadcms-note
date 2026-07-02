@@ -9,17 +9,25 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Revalidate the homepage and all post detail pages
+    const body = await request.json()
+    const slug = body?.slug
+
+    // Always revalidate homepage
     revalidatePath('/')
-    revalidatePath('/posts/[slug]', 'page')
+
+    // Precise revalidation: only revalidate the specific post page
+    if (slug) {
+      revalidatePath(`/posts/${slug}`)
+    }
 
     return NextResponse.json({
       revalidated: true,
+      slug: slug || 'home-only',
       timestamp: Date.now(),
     })
   } catch (error) {
     return NextResponse.json(
-      { error: 'Error revalidating' },
+      { error: 'Error revalidating', details: error instanceof Error ? error.message : String(error) },
       { status: 500 },
     )
   }

@@ -6,7 +6,7 @@ import { buildConfig } from 'payload'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
-const triggerRevalidate = async () => {
+const triggerRevalidate = async ({ doc }: { doc: any }) => {
   const url = `${SITE_URL}/api/revalidate`
   try {
     await fetch(url, {
@@ -15,7 +15,7 @@ const triggerRevalidate = async () => {
         'Content-Type': 'application/json',
         'x-revalidate-secret': process.env.REVALIDATION_SECRET || '',
       },
-      body: JSON.stringify({ collection: 'posts' }),
+      body: JSON.stringify({ collection: 'posts', slug: doc?.slug }),
     })
   } catch (error) {
     console.error('Revalidation failed:', error)
