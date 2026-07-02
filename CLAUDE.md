@@ -37,7 +37,7 @@ Payload afterChange/afterDelete hooks → POST /api/revalidate (x-revalidate-sec
 → revalidatePath('/') + revalidatePath('/posts/[slug]', 'page')
 ```
 
-`getAllPostSlugs()` skips DB query when `IS_DOCKER_BUILD=true` (no DB during Docker build); pages render on-demand via ISR on first request.
+Docker build uses `next build --experimental-build-mode compile` to skip pre-rendering (no DB needed at build time). Pages render on-demand at runtime.
 
 ### Image Loading (OSS)
 

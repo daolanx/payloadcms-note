@@ -3,17 +3,10 @@ import { PostImage } from '@/components/post-image'
 import Link from 'next/link'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import type { Metadata } from 'next'
-import { getPost, getAllPostIds } from '@/lib/posts'
-
-export const revalidate = 60
+import { getPost } from '@/lib/posts'
 
 type PageProps = {
   params: Promise<{ id: string }>
-}
-
-export async function generateStaticParams() {
-  const ids = await getAllPostIds()
-  return ids.map((id) => ({ id: String(id) }))
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

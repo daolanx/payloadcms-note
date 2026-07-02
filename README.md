@@ -1,6 +1,6 @@
 # My Notes
 
-A self-hosted CMS-powered notes application deployed on Alibaba Cloud ECS, featuring ISR static acceleration, Lexical rich text editing, and OSS image pipeline.
+A self-hosted CMS-powered notes application deployed on Alibaba Cloud ECS, featuring Lexical rich text editing and OSS image pipeline.
 
 # Cloud Service Rationale
 
@@ -25,14 +25,6 @@ This is a simple content site. The goal is to keep costs low, meet functional re
 
 ```
 Browser → Nginx → Docker → SQLite + OSS
-```
-
-### ISR + On-demand Revalidation
-
-```
-Build time:    generateStaticParams() → pre-render /posts/[slug] as static HTML
-Edit time:     Payload afterChange hook → POST /api/revalidate → revalidatePath()
-Runtime:       pages served from cache, auto-regenerate every 60s
 ```
 
 ### OSS Image Pipeline

@@ -25,13 +25,10 @@ COPY --from=dependencies /app/node_modules ./node_modules
 
 COPY . .
 
-ARG NEXT_PUBLIC_SITE_URL
-ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NODE_ENV=production
-ENV IS_DOCKER_BUILD=true
 
 RUN --mount=type=cache,target=/app/.next/cache \
-    corepack enable pnpm && pnpm build
+    corepack enable pnpm && pnpm next build --experimental-build-mode compile
 
 # ============================================
 # Stage 3: Run Next.js application

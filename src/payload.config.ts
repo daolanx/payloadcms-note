@@ -2,7 +2,6 @@ import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { migrations } from './migrations'
 import { lexicalEditor, FixedToolbarFeature, UploadFeature } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
-import { revalidatePath } from 'next/cache'
 import { buildConfig } from 'payload'
 
 export default buildConfig({
@@ -82,22 +81,6 @@ export default buildConfig({
       admin: {
         useAsTitle: 'title',
         defaultColumns: ['title', 'status', 'publishedAt'],
-      },
-      hooks: {
-        afterChange: [
-          async ({ doc }) => {
-            console.log(`[revalidate] afterChange post ${doc.id}`)
-            revalidatePath('/')
-            revalidatePath(`/posts/${doc.id}`, 'page')
-          },
-        ],
-        afterDelete: [
-          async ({ doc }) => {
-            console.log(`[revalidate] afterDelete post ${doc.id}`)
-            revalidatePath('/')
-            revalidatePath(`/posts/${doc.id}`, 'page')
-          },
-        ],
       },
       fields: [
         { name: 'title', type: 'text', required: true },

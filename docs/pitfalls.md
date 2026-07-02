@@ -114,20 +114,19 @@ mkdir -p /opt/notes/db && chown 1000:1000 /opt/notes/db
 
 **Symptom**: `pnpm build` fails with `Error: cannot connect to SQLite` or `payloadInitError: true` during Docker image build.
 
-**Cause**: Next.js pre-renders pages at build time. If a page calls a database query (e.g. `getPosts()`), the build tries to connect to the database. In Docker build, there is no database — only at runtime.
+**Cause**: Payload CMS v3 initializes the database adapter during `next build`. In Docker build, there is no database — only at runtime. This is a known issue in the Payload ecosystem ([#11148](https://github.com/payloadcms/payload/discussions/11148), [#10676](https://github.com/payloadcms/payload/discussions/10676)).
 
-**Fix**: Skip database queries during build by checking the `IS_DOCKER_BUILD` env var (set in Dockerfile):
+**Fix**: Use Next.js **compile mode** instead of default build. Compile mode only bundles the code without pre-rendering pages, so no database connection is needed:
 
-```typescript
-export async function getPosts(): Promise<Post[]> {
-  if (process.env.IS_DOCKER_BUILD === 'true') return []
+```dockerfile
+# ❌ Default build — tries to connect to database
+RUN pnpm build
 
-  const payload = await getPayload({ config })
-  // ... actual query
-}
+# ✅ Compile mode — skips pre-rendering, no DB needed
+RUN pnpm next build --experimental-build-mode compile
 ```
 
-> **Note**: Old code used `try-catch` returning `[]` on error — this masked the build failure and silently cached empty results at runtime. The `IS_DOCKER_BUILD` check is explicit and only affects the build phase.
+> **Note**: Compile mode disables Static Site Generation (SSG). All pages are rendered on-demand at request time. For most CMS-backed sites, this is the preferred approach since content changes frequently.
 
 ## CI/CD
 
