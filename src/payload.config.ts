@@ -5,14 +5,7 @@ import { s3Storage } from '@payloadcms/storage-s3'
 import { revalidatePath } from 'next/cache'
 import { buildConfig } from 'payload'
 
-const SITE_URL = process.env.SITE_URL || 'http://localhost:3000'
-
-const getSiteUrl = () => process.env.SITE_URL || SITE_URL
-
 export default buildConfig({
-  serverURL: getSiteUrl(),
-  cors: [getSiteUrl()],
-  csrf: [getSiteUrl(), 'http://localhost:3000'],
   routes: {
     admin: '/trail',
   },
