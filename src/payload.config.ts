@@ -7,7 +7,7 @@ import { buildConfig } from 'payload'
 const SITE_URL = process.env.SITE_URL || 'http://localhost:3000'
 
 const triggerRevalidate = async ({ doc }: { doc: any }) => {
-  const url = `${SITE_URL}/api/revalidate`
+  const url = `${process.env.SITE_URL}/api/revalidate`
   try {
     await fetch(url, {
       method: 'POST',
