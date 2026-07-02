@@ -116,17 +116,27 @@ mkdir -p /opt/notes/db && chown 1000:1000 /opt/notes/db
 
 **Cause**: Payload CMS v3 initializes the database adapter during `next build`. In Docker build, there is no database — only at runtime. This is a known issue in the Payload ecosystem ([#11148](https://github.com/payloadcms/payload/discussions/11148), [#10676](https://github.com/payloadcms/payload/discussions/10676)).
 
-**Fix**: Use Next.js **compile mode** instead of default build. Compile mode only bundles the code without pre-rendering pages, so no database connection is needed:
+**Understanding the build mechanism**:
 
-```dockerfile
-# ❌ Default build — tries to connect to database
-RUN pnpm build
+Next.js `build` has two modes:
 
-# ✅ Compile mode — skips pre-rendering, no DB needed
-RUN pnpm next build --experimental-build-mode compile
+| Mode | Command | What it does | DB needed? |
+|------|---------|-------------|------------|
+| Default | `next build` | Compiles code + pre-renders static pages | Yes (for pages with DB queries) |
+| Compile | `next build --experimental-build-mode compile` | Compiles code only, no pre-rendering | No |
+
+By default, Next.js tries to pre-render pages at build time (Static Site Generation). If a page calls `getPayload()` or any database query, the build attempts to connect to the database. In Docker build, there is no database — so it fails.
+
+Vercel avoids this because its build pipeline separates compilation from pre-rendering, and dynamic pages are deployed as serverless functions that execute at request time.
+
+**Fix**: Use compile mode. It only bundles the code without pre-rendering, so no database connection is needed:
+
+```json
+// package.json
+"build": "next build --experimental-build-mode compile"
 ```
 
-> **Note**: Compile mode disables Static Site Generation (SSG). All pages are rendered on-demand at request time. For most CMS-backed sites, this is the preferred approach since content changes frequently.
+> **Note**: Compile mode disables SSG. All pages render on-demand at request time. For CMS-backed sites where content changes frequently, this is the preferred approach — you get fresh data on every request without needing cache invalidation.
 
 ## CI/CD
 

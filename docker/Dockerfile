@@ -28,7 +28,7 @@ COPY . .
 ENV NODE_ENV=production
 
 RUN --mount=type=cache,target=/app/.next/cache \
-    corepack enable pnpm && pnpm next build --experimental-build-mode compile
+    corepack enable pnpm && pnpm build
 
 # ============================================
 # Stage 3: Run Next.js application
