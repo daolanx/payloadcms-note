@@ -1,4 +1,4 @@
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Revalidate the homepage and all post detail pages
+    revalidateTag('posts')
     revalidatePath('/')
     revalidatePath('/posts/[slug]', 'page')
 
