@@ -15,7 +15,7 @@ const triggerRevalidate = async ({ doc }: { doc: any }) => {
         'Content-Type': 'application/json',
         'x-revalidate-secret': process.env.REVALIDATION_SECRET || '',
       },
-      body: JSON.stringify({ collection: 'posts', slug: doc?.slug }),
+      body: JSON.stringify({ collection: 'posts', id: doc?.id }),
     })
   } catch (error) {
     console.error('Revalidation failed:', error)

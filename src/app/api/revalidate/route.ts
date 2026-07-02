@@ -1,29 +1,27 @@
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   const secret = request.headers.get('x-revalidate-secret')
+  const expectedSecret = process.env.REVALIDATION_SECRET
 
-  if (secret !== process.env.REVALIDATION_SECRET) {
-    return NextResponse.json({ error: 'Invalid secret' }, { status: 401 })
+  if (!expectedSecret || secret !== expectedSecret) {
+    return NextResponse.json({ error: 'Invalid or unconfigured secret' }, { status: 401 })
   }
 
   try {
     const body = await request.json()
-    const slug = body?.slug
+    const id = body?.id
 
-    // Invalidate unstable_cache data (tagged in posts.ts)
-    revalidateTag('posts', '')
-
-    // Invalidate page caches
-    revalidatePath('/')
-    if (slug) {
-      revalidatePath(`/posts/${slug}`)
+    // Invalidate page cache
+    revalidatePath('/', 'page')
+    if (id) {
+      revalidatePath(`/posts/${id}`, 'page')
     }
 
     return NextResponse.json({
       revalidated: true,
-      slug: slug || 'home-only',
+      id: id || 'home-only',
       timestamp: Date.now(),
     })
   } catch (error) {
