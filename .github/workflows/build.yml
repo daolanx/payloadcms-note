@@ -29,7 +29,7 @@ jobs:
         run: echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ env.ACR_REGISTRY }} -u ${{ env.ACR_USERNAME }} --password-stdin
 
       - name: Build image
-        run: TAG=${{ steps.tag.outputs.TAG }} bash docker/build.sh
+        run: bash docker/build.sh --tag ${{ steps.tag.outputs.TAG }}
 
       - name: Push image
-        run: TAG=${{ steps.tag.outputs.TAG }} bash docker/push.sh  # pushes the image built in previous step
+        run: bash docker/push.sh --tag ${{ steps.tag.outputs.TAG }}
