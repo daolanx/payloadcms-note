@@ -6,8 +6,11 @@ import { buildConfig } from 'payload'
 
 const SITE_URL = process.env.SITE_URL || 'http://localhost:3000'
 
+// Read at runtime — build-time SITE_URL defaults to localhost
+const getSiteUrl = () => process.env.SITE_URL || SITE_URL
+
 const triggerRevalidate = async ({ doc }: { doc: any }) => {
-  const url = `${process.env.SITE_URL}/api/revalidate`
+  const url = `${getSiteUrl()}/api/revalidate`
   try {
     await fetch(url, {
       method: 'POST',
@@ -23,9 +26,9 @@ const triggerRevalidate = async ({ doc }: { doc: any }) => {
 }
 
 export default buildConfig({
-  serverURL: SITE_URL,
-  cors: [SITE_URL],
-  csrf: [SITE_URL, 'http://localhost:3000'],
+  serverURL: getSiteUrl(),
+  cors: [getSiteUrl()],
+  csrf: [getSiteUrl(), 'http://localhost:3000'],
   routes: {
     admin: '/trail',
   },
