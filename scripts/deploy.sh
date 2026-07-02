@@ -42,6 +42,9 @@ docker pull "$IMAGE"
 echo "▸ [3/3] Recreate container ..."
 docker stop "$CONTAINER" 2>/dev/null || true
 docker rm "$CONTAINER" 2>/dev/null || true
+# Ensure db directory is writable by container (node user, uid 1000)
+mkdir -p "$REMOTE_DIR/db"
+chown 1000:1000 "$REMOTE_DIR/db"
 docker create \
   --name "$CONTAINER" \
   --restart always \
