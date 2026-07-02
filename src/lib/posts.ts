@@ -16,6 +16,8 @@ export interface Post {
 }
 
 export async function getPosts(): Promise<Post[]> {
+  if (process.env.IS_DOCKER_BUILD === 'true') return []
+
   const payload = await getPayload({ config })
   const result = await payload.find({
     collection: 'posts',
@@ -27,6 +29,8 @@ export async function getPosts(): Promise<Post[]> {
 }
 
 export async function getPost(id: number): Promise<Post | null> {
+  if (process.env.IS_DOCKER_BUILD === 'true') return null
+
   const payload = await getPayload({ config })
   const result = await payload.find({
     collection: 'posts',
