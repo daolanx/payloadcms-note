@@ -110,6 +110,25 @@ The `deploy.sh` script handles this automatically. If you create the directory m
 mkdir -p /opt/notes/db && chown 1000:1000 /opt/notes/db
 ```
 
+### Build Fails: Database Connection During Docker Build
+
+**Symptom**: `pnpm build` fails with `Error: cannot connect to SQLite` or `payloadInitError: true` during Docker image build.
+
+**Cause**: Next.js pre-renders pages at build time. If a page calls a database query (e.g. `getPosts()`), the build tries to connect to the database. In Docker build, there is no database — only at runtime.
+
+**Fix**: Skip database queries during build by checking the `IS_DOCKER_BUILD` env var (set in Dockerfile):
+
+```typescript
+export async function getPosts(): Promise<Post[]> {
+  if (process.env.IS_DOCKER_BUILD === 'true') return []
+
+  const payload = await getPayload({ config })
+  // ... actual query
+}
+```
+
+> **Note**: Old code used `try-catch` returning `[]` on error — this masked the build failure and silently cached empty results at runtime. The `IS_DOCKER_BUILD` check is explicit and only affects the build phase.
+
 ## CI/CD
 
 ### Mac Build → ECS Deploy Architecture Mismatch
