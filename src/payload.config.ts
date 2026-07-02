@@ -86,14 +86,16 @@ export default buildConfig({
       hooks: {
         afterChange: [
           async ({ doc }) => {
-            await revalidatePath('/')
-            await revalidatePath(`/posts/${doc.id}`, 'page')
+            console.log(`[revalidate] afterChange post ${doc.id}`)
+            revalidatePath('/')
+            revalidatePath(`/posts/${doc.id}`, 'page')
           },
         ],
         afterDelete: [
           async ({ doc }) => {
-            await revalidatePath('/')
-            await revalidatePath(`/posts/${doc.id}`, 'page')
+            console.log(`[revalidate] afterDelete post ${doc.id}`)
+            revalidatePath('/')
+            revalidatePath(`/posts/${doc.id}`, 'page')
           },
         ],
       },
